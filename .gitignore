@@ -48,3 +48,8 @@ esp32/*.bin
 esp32/*.elf
 esp32/*.map
 **/seguridad_esp32/build/
+
+# ===== Código viejo (v1), solo queda en la PC =====
+esp32/
+frontend/
+legacy/

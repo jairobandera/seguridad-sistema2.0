@@ -1,533 +1,370 @@
-# 🏠 Sistema de Seguridad Residencial
+# Seguridad Residencial v2
 
-Sistema modular de seguridad residencial capaz de detectar eventos críticos, enviar alertas en tiempo real, notificaciones SMS a contactos de emergencia y aplicaciones multiplataforma, utilizando hardware económico y tecnologías abiertas.
+Sistema de alarma para casas: una placa **ESP32** con sensor magnético en la puerta, un **backend** Node
+(API + tiempo real + broker MQTT) y una **app** para celular (Android/iOS) con tres tipos de usuario.
 
-## 🚀 Tecnologías Principales
+```
+ Celular (app)  ──HTTP / WebSocket──►  Backend en tu PC  ──►  MySQL (XAMPP)
+                                          ▲
+ Placa ESP32  ─────── MQTT (puerto 1884) ─┘
+```
 
-### Backend
-- **Node.js** → API REST
-- **Express 5** → Framework web
-- **TypeScript** → Tipado estático
-- **PostgreSQL** → Base de datos relacional
-- **Prisma ORM** → ORM moderno
-- **MQTT (Mosquitto)** → Comunicación tiempo real con ESP32
-- **Socket.IO** → WebSockets para frontend
-- **JWT** → Autenticación
-- **bcrypt** → Hash de contraseñas
-- **Twilio** → Envío de SMS
-- **Firebase Admin** → Notificaciones push (FCM)
+| Carpeta | Qué es |
+|---|---|
+| `backend/` | Node 20 + Express 5 + TypeScript + Prisma (MySQL) + Socket.IO + broker MQTT incluido (aedes) + Expo Push + Twilio |
+| `app/` | React Native + Expo SDK 58 (Expo Router, React Native Paper). Se compila en la nube con EAS |
+| `firmware/` | ESP32 con Arduino IDE (NimBLE, ArduinoJson, esp-mqtt) |
+| `docs/protocolo.md` | Contrato único: Bluetooth, MQTT, Socket.IO y API |
 
-### Frontend
-- **Flutter** → App multiplataforma (Android, iOS, Web, Desktop)
-- **Dart** → Lenguaje de programación
-
-### Firmware
-- **ESP32** → Microcontrolador con WiFi + BLE
-- **Arduino Framework** → Desarrollo de firmware
-- **NimBLE** → Biblioteca BLE de baja energía
-- **PubSubClient** → Cliente MQTT
+Esta guía explica cómo **levantar todo en tu PC** (red local).
 
 ---
 
-## 📁 Estructura de Carpetas
-
-```
-/seguridad-sistema/
-├── esp32/              → Firmware ESP32 (Arduino)
-│   └── seguridad_esp32.ino
-│
-├── backend/            → API REST, WebSockets, MQTT bridge
-│   ├── src/
-│   ├── prisma/
-│   └── package.json
-│
-├── frontend/           → Flutter (Android, iOS, Web, Desktop)
-│   └── seguridad_app/
-│       └── lib/
-│
-├── AGENTS.md           → Instrucciones para agentes de IA
-└── README.md
-```
+## Índice
+1. [Qué necesitás](#1-qué-necesitás)
+2. [Primera vez: base de datos](#2-primera-vez-base-de-datos)
+3. [Primera vez: backend](#3-primera-vez-backend)
+4. [Primera vez: firewall de Windows](#4-primera-vez-firewall-de-windows)
+5. [Primera vez: app en el celular](#5-primera-vez-app-en-el-celular)
+6. [Primera vez: firmware en la placa](#6-primera-vez-firmware-en-la-placa)
+7. [Vincular la placa](#7-vincular-la-placa)
+8. [Uso diario: qué prender cada vez](#8-uso-diario-qué-prender-cada-vez)
+9. [Probar sin placa (simulador)](#9-probar-sin-placa-simulador)
+10. [SMS con Twilio (opcional)](#10-sms-con-twilio-opcional)
+11. [Tests y chequeos](#11-tests-y-chequeos)
+12. [Problemas comunes](#12-problemas-comunes)
 
 ---
 
-## ⚙️ Requisitos Previos
+## 1. Qué necesitás
 
-### 1. **Node.js (v25.4.0)**
-**Descarga:** https://nodejs.org/es/download/current  
-**Versión recomendada:** v25.4.0 o superior
+| Herramienta | Para qué |
+|---|---|
+| **Node.js 20 o más nuevo** | Backend y app |
+| **XAMPP** (solo MySQL) | Base de datos |
+| **Arduino IDE 2** + placa **esp32 by Espressif 3.x** | Grabar la placa |
+| Librerías **NimBLE-Arduino 2.x** (h2zero) y **ArduinoJson 7.x** (Benoit Blanchon) | Firmware |
+| Cuenta gratis en **https://expo.dev** | Compilar la app en la nube |
+| Celular **Android** | La app (iPhone necesita cuenta de Apple Developer) |
+| Placa **ESP32** (ESP32 Dev Module) + sensor magnético (reed switch) | El hardware |
 
-```sh
-# Verificar instalación
-node --version
-npm --version
-```
+**No** hace falta Android Studio, Mosquitto ni Docker.
 
-### 2. **PostgreSQL**
-**Descarga:** https://www.postgresql.org/download/  
-**Versión recomendada:** 15+  
+> La PC, el celular y la placa tienen que estar en la **misma red** (mismo router).
 
-```sh
-# Crear base de datos
-psql -U postgres -c "CREATE DATABASE seguridad;"
-```
+**Tu IP local:** casi todo apunta a la IP de tu PC. Para verla, abrí una terminal y ejecutá `ipconfig` → "Dirección IPv4"
+(por ejemplo `192.168.1.75`). En esta guía aparece como `IP-DE-TU-PC`.
 
-### 3. **Mosquitto MQTT Broker**
-**Descarga:** https://mosquitto.org/download/  
-**Versión recomendada:** 2.0+
+> Consejo: en el router, reservale siempre la misma IP a tu PC ("reserva DHCP"). Si la IP cambia, hay que tocar
+> los `.env` y volver a vincular la placa (ver [Problemas comunes](#12-problemas-comunes)).
 
-**Windows:** Instalador directo desde la web  
-**Linux:** `sudo apt install mosquitto mosquitto-clients`  
-**Docker:** `docker run -d -p 1883:1883 eclipse-mosquitto`
+---
 
-### 4. **Flutter SDK (3.41.7)**
-**Descarga:** https://docs.flutter.dev/get-started/install  
-**Versión recomendada:** 3.41.7 (canal stable)
+## 2. Primera vez: base de datos
 
-```sh
-# Verificar instalación
-flutter --version
-flutter doctor
-```
-
-### 5. **Android Studio** (para desarrollo Flutter/Android)
-**Descarga:** https://developer.android.com/studio  
-**Versión recomendada:**latest stable
-
-**Componentes necesarios:**
-- Android SDK
-- Android SDK Platform-tools
-- Android SDK Build-tools
-- Android Emulator (opcional)
-
-### 6. **Arduino IDE** (para firmware ESP32)
-**Descarga:** https://www.arduino.cc/en/software  
-**Versión recomendada:** 2.3.2+
-
-**Configuración ESP32:**
-1. Abrir Arduino IDE
-2. Ir a `Archivo → Preferencias`
-3. En "URLs adicionales de placas", agregar:
+1. Abrí el **XAMPP Control Panel** → **Start** en **MySQL**.
+2. Creá las dos bases (una para usar y otra para los tests):
+   ```bash
+   C:\xampp\mysql\bin\mysql.exe -u root -e "CREATE DATABASE IF NOT EXISTS seguridad; CREATE DATABASE IF NOT EXISTS seguridad_test;"
    ```
-   https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
-   ```
-4. Ir a `Herramientas → Placa → Gestor de placas`
-5. Buscar "esp32" e instalar "esp32 by Espressif Systems"
-6. Seleccionar placa: `ESP32 Dev Module`
+   (También podés crearlas desde phpMyAdmin: `http://localhost/phpmyadmin` → Nueva).
 
-### 7. **Librerías Arduino necesarias**
-Instalar desde `Herramientas → Gestionar librerías`:
-- `PubSubClient` by Nick O'Leary (MQTT)
-- `NimBLE-Arduino` by h2zero (BLE)
+El usuario `root` de XAMPP viene **sin contraseña**. Si le pusiste una, agregala en `DATABASE_URL` del paso siguiente
+(`mysql://root:TU_CLAVE@localhost:3306/seguridad`).
 
 ---
 
-## 🔧 Configuración del Backend
+## 3. Primera vez: backend
 
-### 1️⃣ Clonar el repositorio
+Todo esto en una terminal, dentro de la carpeta `backend`.
 
-```sh
-git clone https://github.com/jairobandera/seguridad-sistema.git
-cd seguridad-sistema/backend
+### 3.1 Instalar dependencias
+```bash
+npx pnpm@10 install
 ```
 
-### 2️ Instalar dependencias
+### 3.2 Crear el `.env`
+Copiá `backend/.env.example` como `backend/.env` y completá:
 
-```sh
-# Con pnpm (recomendado - más rápido y seguro)
-pnpm install
+| Variable | Qué poner |
+|---|---|
+| `DATABASE_URL` | `mysql://root:@localhost:3306/seguridad` (así viene) |
+| `JWT_SECRET` | Un secreto nuevo (ver abajo) |
+| `DEVICE_SECRET_KEY` | Otro secreto nuevo (ver abajo). **No lo cambies después**: si lo cambiás hay que volver a vincular las placas |
+| `MQTT_TCP_PORT` | `1884` (así viene) |
+| `MQTT_PUBLIC_URL` | `mqtt://IP-DE-TU-PC:1884` |
+| `CORS_ORIGINS` | Vacío (o `http://localhost:8081` si usás la app en el navegador) |
+| `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` | El email y la clave del administrador (mínimo 8 caracteres) |
 
-# O con npm (alternativa)
+Para generar los secretos:
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
+```
+→ pegalo en `JWT_SECRET`.
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+→ pegalo en `DEVICE_SECRET_KEY`.
+
+> El `.env` **nunca** se sube a GitHub (está en `.gitignore`).
+
+### 3.3 Crear las tablas y los usuarios de prueba
+```bash
+npx prisma migrate deploy
+```
+```bash
+npx pnpm@10 seed -- --demo
+```
+
+El seed crea tu administrador (el del `.env`) y estos usuarios de prueba:
+
+| Rol | Email | Contraseña |
+|---|---|---|
+| Cliente (dueña de la casa C-DEMO) | ana@demo.com | Demo12345 |
+| Cliente (familiar) | juan@demo.com | Demo12345 |
+| Guardia | guardia@demo.com | Demo12345 |
+
+### 3.4 Arrancar
+```bash
+npx pnpm@10 dev
+```
+Dejá esa terminal abierta. Se reinicia solo cuando guardás cambios en el código.
+
+Comprobá que anda abriendo **`http://localhost:3000/api/health`** en el navegador. Tiene que decir
+`"ok":true,"db":true,"mqtt":true`.
+
+---
+
+## 4. Primera vez: firewall de Windows
+
+Para que el celular y la placa lleguen a tu PC. Abrí PowerShell **como administrador** y ejecutá:
+```bash
+netsh advfirewall firewall add rule name="Seguridad API 3000" protocol=TCP dir=in localport=3000 action=allow
+```
+```bash
+netsh advfirewall firewall add rule name="Seguridad MQTT 1884" protocol=TCP dir=in localport=1884 action=allow
+```
+
+Comprobalo desde el **navegador del celular** (conectado al mismo WiFi): `http://IP-DE-TU-PC:3000/api/health`.
+
+---
+
+## 5. Primera vez: app en el celular
+
+Todo esto dentro de la carpeta `app`.
+
+### 5.1 Instalar y configurar
+```bash
 npm install
 ```
-
-### 3️⃣ Configurar archivo `.env`
-
-Crear archivo `.env` en `/backend` con:
-
-```env
-DATABASE_URL="postgresql://postgres:tu_password@localhost:5432/seguridad"
-JWT_SECRET="tu_secreto_muy_seguro_cambialo"
-MQTT_URL="mqtt://localhost:1883"
-PORT=3000
-LOG_LEVEL=info
-
-# Twilio (SMS)
-TWILIO_ACCOUNT_SID="tu_account_sid"
-TWILIO_AUTH_TOKEN="tu_auth_token"
-TWILIO_PHONE_NUMBER="+1234567890"
-
-# Firebase (notificaciones push)
-FIREBASE_PROJECT_ID="tu_project_id"
+Copiá `app/.env.example` como `app/.env` y poné tu IP:
+```
+EXPO_PUBLIC_API_URL=http://IP-DE-TU-PC:3000
 ```
 
-### 4️ Configurar Firebase Admin SDK (notificaciones push)
-
-**Paso 1: Crear proyecto en Firebase Console**
-
-1. Ir a https://console.firebase.google.com/
-2. Click en "Agregar proyecto" o seleccionar uno existente
-3. Anotar el `Project ID` para el `.env`
-
-**Paso 2: Generar clave de servicio (service account)**
-
-1. En Firebase Console, ir a `Configuración del proyecto` (engranaje)
-2. Pestaña `Cuentas de servicio`
-3. Click en `Generar nueva clave privada`
-4. Se descargará un archivo JSON (ej: `service-account.json`)
-
-**Paso 3: Colocar el archivo en el backend**
-
-```sh
-# Crear directorio firebase en backend
-mkdir backend/firebase
-
-# Mover el archivo descargado
-mv ~/Downloads/service-account.json backend/firebase/
+### 5.2 Compilar la "app de desarrollo" (una sola vez)
+La app usa **Bluetooth**, que **no** funciona en Expo Go. Por eso se compila una app propia en la nube de Expo
+(tarda unos 10–15 minutos):
+```bash
+npx eas-cli@latest login
 ```
-
-**Estructura resultante:**
+```bash
+npx eas-cli@latest build --profile development --platform android
 ```
-backend/
-├── firebase/
-│   └── service-account.json   (NO subir a git - está en .gitignore)
-├── src/
-├── prisma/
-└── package.json
+- Si pregunta *"Generate a new Android Keystore?"* → **Y**.
+- Al final, si pregunta *"Install and run on an emulator?"* → **n** (no hace falta Android Studio).
+- Te da un **link/QR**: abrilo en el celular, descargá el APK e instalalo (Android pide permitir "orígenes desconocidos").
+
+Solo hay que volver a compilar si se agregan librerías nativas nuevas a la app.
+
+> Si usás tu propia cuenta de Expo: borrá `extra.eas.projectId` de `app/app.config.ts` y ejecutá
+> `npx eas-cli@latest init` antes del build. El `slug` del `app.config.ts` tiene que coincidir con el del proyecto en Expo.
+
+### 5.3 Probar rápido sin compilar (opcional)
+Con **Expo Go** (de la Play Store) podés probar el login, el guardia y el admin, pero **sin Bluetooth ni push**:
+```bash
+npx expo start
 ```
-
-**Nota:** El archivo `service-account.json` contiene credenciales sensibles y está excluido del repositorio en `.gitignore`. Cada desarrollador debe colocar su propio archivo.
-
-### 5️⃣ Configurar Firebase en Flutter (cliente)
-
-**Para Android:**
-
-1. En Firebase Console, ir a `Configuración del proyecto`
-2. En `Tus apps`, agregar app Android con package: `com.example.seguridad_app`
-3. Descargar `google-services.json`
-4. Colocar en `frontend/seguridad_app/android/app/google-services.json`
-
-**Para iOS:**
-
-1. Agregar app iOS en Firebase Console
-2. Descargar `GoogleService-Info.plist`
-3. Colocar en `frontend/seguridad_app/ios/Runner/GoogleService-Info.plist`
-
-**Para Web:**
-
-1. Agregar app Web en Firebase Console
-2. Copiar configuración en `frontend/seguridad_app/web/index.html`
-
-### 6️⃣ Generar cliente Prisma
-
-```sh
-npx prisma generate
-```
-
-### 5️⃣ Ejecutar migraciones
-
-```sh
-npx prisma migrate dev --name init
-```
-
-### 6️⃣ Abrir Prisma Studio (opcional)
-
-```sh
-npx prisma studio
-```
+y escaneá el QR con Expo Go.
 
 ---
 
-## 🚀 Levantar el servidor
+## 6. Primera vez: firmware en la placa
 
-```sh
-cd backend
-npm run dev
-```
+### 6.1 Conexiones
+| Elemento | Pin |
+|---|---|
+| Sensor magnético (reed switch) | **GPIO14** y **GND** |
+| Botón de configuración | botón **BOOT** de la placa (no hay que soldar nada) |
+| LED de estado | LED azul de la placa (GPIO2) |
 
-El servidor iniciará en `http://0.0.0.0:3000`
+Imán cerca = puerta **cerrada**. Si se corta el cable del sensor, la placa lo toma como **abierta**.
 
----
+### 6.2 Configurar Arduino IDE
+1. Abrí `firmware/seguridad_esp32/seguridad_esp32.ino` (se abren todas las pestañas solas).
+2. Librerías (**Programa → Incluir librería → Gestionar librerías**): **NimBLE-Arduino** 2.x y **ArduinoJson** 7.x.
+3. **Herramientas**:
+   - **Placa → esp32 → ESP32 Dev Module** ⚠️ no "ESP32-C5" ni otra variante.
+   - **Partition Scheme → Minimal SPIFFS (1.9MB APP with OTA)** ⚠️ con la de por defecto **no entra**.
+   - **Puerto** → el COM de la placa (por ejemplo COM3).
+   - El resto, como viene.
 
-## 📱 Configuración del Frontend (Flutter)
+> Al cambiar de placa, el IDE vuelve las opciones a su valor por defecto: revisá de nuevo el **Partition Scheme**.
 
-### 1️⃣ Navegar al proyecto Flutter
+### 6.3 Subir
+Tocá **Subir (→)**. La primera vez tarda varios minutos (compila todo desde cero); las siguientes, bastante menos.
+Si se queda en `Connecting.....`, mantené apretado **BOOT** hasta que empiece a subir.
 
-```sh
-cd frontend/seguridad_app
-```
+Abrí el **Monitor Serie a 115200** para ver qué hace. Recién grabada, la luz azul parpadea rápido: está esperando la app.
 
-### 2️⃣ Instalar dependencias
+### 6.4 Qué significa el LED
+| LED | Estado |
+|---|---|
+| Parpadeo rápido continuo | Bluetooth abierto: esperando la app |
+| 2 destellos cada 2 s | Sin WiFi |
+| 3 destellos cada 2 s | Hay WiFi pero no llega al servidor |
+| 1 destello corto cada 5 s | Todo funcionando |
+| Fijo encendido (con BOOT apretado) | Soltá ahora para restablecer de fábrica |
 
-```sh
-flutter pub get
-```
+**Botón BOOT:** 5 s → abre el Bluetooth 10 minutos (para cambiar el WiFi). 15 s → restablece de fábrica.
 
-### 3️ Configurar API del Backend
-
-**Importante:** La aplicación Flutter necesita saber la IP de tu servidor backend.
-
-1. Abrir `frontend/seguridad_app/lib/core/api/api_client.dart`
-
-2. Buscar línea ~26:
-```dart
-static const String baseUrl = 'http://192.168.1.17:3000';
-```
-
-3. Cambiar la IP por la de tu servidor:
-```dart
-static const String baseUrl = 'http://TU_IP_DEL_SERVIDOR:3000';
-```
-
-**Ejemplos:**
-- **Desarrollo local (misma red):** `http://192.168.1.17:3000` (tu IP local)
-- **Producción:** `https://api.tudominio.com`
-- **Emulador Android:** `http://10.0.2.2:3000` (localhost del emulador)
-
-**Nota:** Esta IP debe coincidir con `API_BASE_URL` en `backend/.env`
-
-### 4️ Configurar Firebase (opcional)
-
-Colocar `google-services.json` en `android/app/` para notificaciones push.
-
-### 4️⃣ Ejecutar en dispositivo/emulador
-
-```sh
-# Listar dispositivos conectados
-flutter devices
-
-# Ejecutar en Android
-flutter run
-
-# Build APK
-flutter build apk
-
-# Build para Web
-flutter build web
-```
+Más detalles del firmware: [`firmware/README.md`](firmware/README.md).
 
 ---
 
-## 🔌 Firmware ESP32
+## 7. Vincular la placa
 
-### 1️⃣ Abrir el sketch
+Con el backend corriendo y la app abierta:
 
-Abrir `esp32/seguridad_esp32.ino` en Arduino IDE.
+1. Entrá como **ana@demo.com**.
+2. **Placa → Agregar placa** → elegí `HUB-XXXX` → elegí tu red WiFi → escribí la clave → **Conectar**.
+3. Tiene que decir *"¡Listo! Tu placa quedó vinculada"* y la luz pasa a 1 destello cada 5 s.
 
-### 2️⃣ Configurar MQTT
-
-Editar líneas 9-10 del archivo `.ino`:
-
-```cpp
-const char* MQTT_HOST = "192.168.1.34";  // IP de tu servidor MQTT
-const uint16_t MQTT_PORT = 1883;
+En el Monitor Serie se ve:
+```
+[wifi] conectada a TU_RED, IP 192.168.1.xx
+[setup] vinculando
+[setup] vinculada
+[mqtt] conectado
 ```
 
-### 3️⃣ Seleccionar placa y puerto
-
-- **Placa:** `ESP32 Dev Module`
-- **Puerto:** COMx (Windows) o `/dev/ttyUSB0` (Linux)
-
-### 4️⃣ Subir firmware
-
-Click en "Subir" (flecha derecha) en Arduino IDE.
-
-### 5️⃣ Abrir Monitor Serie
-
-- Baud rate: `115200`
-- Ver logs de conexión BLE, WiFi y MQTT
+### Prueba completa
+1. **Inicio**: la puerta y la placa aparecen en vivo. Separá el imán → "Puerta abierta".
+2. Mantené apretado el botón para **armar**. Separá el imán → pantalla roja con sirena.
+3. En otro celular entrá como **guardia@demo.com** → aparece la alerta → Tomar → Cerrar.
+4. Desenchufá la placa → al minuto aparece "Sin conexión" (y alerta al guardia si estaba armada).
 
 ---
 
-## 🔌 Probar MQTT (opcional)
+## 8. Uso diario: qué prender cada vez
 
-### Publicar evento de puerta
+Una vez hecho todo lo anterior, para seguir probando solo hace falta:
 
-```sh
-mosquitto_pub -t "home/ABC123/door/open" -m '{"deviceId":"ABC123","tipo":"PUERTA_ABIERTA","valor":"1"}'
-```
+1. **XAMPP** → **Start** en MySQL.
+2. Terminal en `backend`:
+   ```bash
+   npx pnpm@10 dev
+   ```
+3. Terminal en `app`:
+   ```bash
+   npx expo start --dev-client
+   ```
+4. **Enchufá la placa** (cualquier cargador USB; no necesita la PC). Se conecta sola.
+5. Abrí **Seguridad Hogar** en el celular. Si no carga sola, escaneá el QR de la terminal.
 
-### Publicar heartbeat
+**No** hace falta volver a compilar la app ni a grabar la placa, salvo que cambie su código.
 
-```sh
-mosquitto_pub -t "home/ABC123/heartbeat" -m '{"deviceId":"ABC123","tipo":"HEARTBEAT","rssi":-65,"uptime":12345}'
-```
-
-### Suscribirse a todos los mensajes
-
-```sh
-mosquitto_sub -t "home/#" -v
-```
-
----
-
-## 🔐 Endpoints de API
-
-### Crear usuario
-
-```sh
-POST http://localhost:3000/api/usuarios
-Content-Type: application/json
-
-{
-  "nombre": "Juan",
-  "apellido": "Pérez",
-  "email": "juan@ejemplo.com",
-  "password": "123456",
-  "rol": "CLIENTE"
-}
-```
-
-### Login
-
-```sh
-POST http://localhost:3000/api/usuarios/login
-Content-Type: application/json
-
-{
-  "email": "juan@ejemplo.com",
-  "password": "123456"
-}
-```
-
-### Obtener estado WiFi de dispositivo
-
-```sh
-GET http://localhost:3000/api/dispositivos/:deviceId/wifi-status
-Authorization: Bearer <token>
-```
-
-### Estado de MQTT
-
-```sh
-GET http://localhost:3000/api/dispositivos/mqtt-status
-```
+Para apagar: `Ctrl + C` en cada terminal y **Stop** en XAMPP.
 
 ---
 
-## 📦 Scripts útiles
+## 9. Probar sin placa (simulador)
 
-### Backend
-
-```sh
-# Instalación de dependencias (recomendado)
-pnpm install
-
-# Desarrollo con hot reload
-pnpm run dev
-
-# Abrir Prisma Studio
-pnpm prisma studio
-
-# Regenerar cliente Prisma
-pnpm prisma generate
-
-# Crear nueva migración
-pnpm prisma migrate dev --name <nombre>
-
-# Resetear base de datos
-pnpm prisma migrate reset
+Desde `backend`, con el backend corriendo. Primero pedí un código en la app (**Placa → Agregar placa**) y después:
+```bash
+npx tsx scripts/simular-placa.ts --codigo CODIGO
 ```
-
-### Flutter
-
-```sh
-# Instalar dependencias
-flutter pub get
-
-# Ejecutar con hot reload
-flutter run
-
-# Build APK release
-flutter build apk --release
-
-# Build Web
-flutter build web
-
-# Limpiar proyecto
-flutter clean
+Las siguientes veces ya no hace falta el código:
+```bash
+npx tsx scripts/simular-placa.ts
 ```
+Teclas: `a` abre la puerta, `c` la cierra, `q` sale.
 
 ---
 
-## 🧹 Archivos ignorados (.gitignore)
+## 10. SMS con Twilio (opcional)
 
-- `.env*` (todas las variables de entorno)
-- `backend/node_modules/`, `dist/`
-- `backend/firebase/service-account.json` (credenciales Firebase)
-- `frontend/**/build/`, `.dart_tool/`
-- `esp32/build/`
-- `info/` (archivos personales)
-- `*.log`, `*.tmp`
+Sin esto todo funciona igual, solo que no se mandan SMS.
 
----
+1. Creá una cuenta en https://www.twilio.com y conseguí un número con capacidad **SMS**.
+2. En **Messaging → Settings → Geo permissions** habilitá los países a los que vas a mandar (por ejemplo Uruguay y Argentina).
+3. En `backend/.env`:
+   ```
+   SMS_HABILITADO=true
+   TWILIO_ACCOUNT_SID=AC...
+   TWILIO_AUTH_TOKEN=...
+   TWILIO_FROM_NUMBER=+1...
+   ```
+4. Reiniciá el backend. Ya no debería decir "SMS deshabilitado".
+5. Cargá tu número en la app (**Mi cuenta** o **Contactos de emergencia**) en formato internacional: `+598` + el número sin el 0.
 
-## 📊 Monitoreo y Debugging
+Reciben SMS el **dueño** y sus **contactos de emergencia** cuando se abre la puerta con la alarma armada o la placa se
+desconecta estando armada. Como máximo 1 SMS cada 5 minutos por casa (`SMS_MINUTOS_ENTRE_ALERTAS`).
 
-### Backend
-- Logs en consola con niveles (info, warn, error)
-- Prisma Studio para inspeccionar DB
-- Endpoint `/api/dispositivos/mqtt-status` para diagnóstico MQTT
-
-### ESP32
-- Monitor Serie (115200 baud)
-- Logs de conexión BLE, WiFi, MQTT
-- RSSI en heartbeats para verificar calidad de señal
-
-### Flutter
-- `flutter doctor` para diagnóstico de entorno
-- Logs en consola de Android Studio / VS Code
-- DevTools para profiling
+> Cuenta de prueba (*Trial*) de Twilio: solo manda a números **verificados** (Console → Verified Caller IDs) y agrega un
+> texto de Twilio al mensaje.
 
 ---
 
-## 🔄 Flujo de Funcionamiento
+## 11. Tests y chequeos
 
-### Configuración WiFi por BLE
-
-1. App Flutter escanea dispositivos BLE cercanos
-2. Se conecta a `HUB-XXXX` (4 últimos dígitos de MAC)
-3. Usuario ingresa SSID y contraseña WiFi
-4. App envía credenciales por BLE
-5. ESP32 guarda en Preferences y conecta a WiFi
-6. ESP32 publica estado por MQTT
-7. Backend actualiza DB y notifica a Flutter por Socket.IO
-8. App muestra "Conectado a [SSID]"
-
-### Detección de eventos
-
-1. Sensor magnético detecta apertura de puerta
-2. ESP32 publica evento por MQTT
-3. Backend recibe, guarda en DB, envía SMS (si alarma armada)
-4. Backend notifica a guardias por Socket.IO
-5. App de guardia recibe alerta en tiempo real
-
-### Monitor de dispositivos offline
-
-1. Backend verifica heartbeats cada 15s
-2. Si no hay heartbeat en 30s → marca como offline
-3. Crea evento `DISPOSITIVO_OFFLINE`
-4. Notifica a guardias y dueño (si alarma armada)
-5. App actualiza UI automáticamente por Socket.IO
+Backend (con MySQL prendido; usa la base `seguridad_test`):
+```bash
+npx pnpm@10 test
+```
+```bash
+npx pnpm@10 typecheck
+```
+App:
+```bash
+npx tsc --noEmit
+```
+```bash
+npx eslint src
+```
+Firmware: compilar en Arduino IDE (✓) o con `arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=min_spiffs firmware/seguridad_esp32`.
 
 ---
 
-## 🛠️ Próximos Pasos
+## 12. Problemas comunes
 
-- [ ] Actualizar funcionalidades del administrador (gestión de usuarios, casas, dispositivos)
-- [ ] Mejorar panel de guardias (historial de eventos, marcado de eventos como atendidos)
-- [ ] Agregar integración con cámaras RTSP/WebRTC
-- [ ] Implementar modos de alarma (armado/desarmado) por geolocalización
-- [ ] Agregar historial de eventos con filtros y exportación
-- [ ] Mejorar notificaciones push con categorías y acciones
+| Problema | Causa | Solución |
+|---|---|---|
+| `EADDRINUSE ... :1884` o `:3000` al arrancar el backend | Quedó otro backend prendido | Cerrá todas las terminales y abrí una nueva. Si sigue: `Get-NetTCPConnection -LocalPort 3000,1884 -State Listen` muestra el proceso → `Stop-Process -Id <PID>` |
+| El celular no conecta / "Network request failed" | Firewall, IP o red distinta | Revisá el [paso 4](#4-primera-vez-firewall-de-windows), que `app/.env` tenga la IP correcta y que el celular esté en el mismo WiFi. Probá `http://IP-DE-TU-PC:3000/api/health` en el navegador del celular |
+| Cambió la IP de la PC | El router le dio otra | Actualizá `MQTT_PUBLIC_URL` en `backend/.env` y `EXPO_PUBLIC_API_URL` en `app/.env`. Reiniciá backend y app. La placa guarda la IP vieja: **Placa → Restablecer y desvincular** (o BOOT 15 s) y volvé a vincularla |
+| "La placa se conectó al WiFi pero no llega al servidor" | La placa no llega a tu PC | Mirá el Monitor Serie: la IP de la placa tiene que estar en la misma red que la PC (por ejemplo `192.168.1.x`). Las redes de invitados y algunos repetidores aíslan los equipos |
+| "La contraseña del WiFi es incorrecta" | Clave mal escrita | Volvé a intentar. La placa solo usa WiFi de **2.4 GHz** |
+| `This chip is ESP32, not ESP32-C5` al subir | Placa equivocada en el IDE | **Herramientas → Placa → ESP32 Dev Module** y revisá el Partition Scheme |
+| `Sketch too big` al compilar | Partición por defecto | **Partition Scheme → Minimal SPIFFS** |
+| `Slug ... does not match` en `eas build` | El slug no coincide con el proyecto de Expo | Igualá `slug` en `app/app.config.ts` con el proyecto (ver `npx eas-cli@latest project:info`) |
+| `adb executable doesn't seem to work` al final del build | EAS quiso abrir un emulador | Ignoralo: el build salió bien. Instalá el APK desde el link |
+| MySQL no arranca en XAMPP | Puerto 3306 ocupado u otro MySQL | Cerrá otros MySQL o revisá el log de XAMPP |
 
 ---
 
-## 📞 Soporte
+## Funciones
+- **Cliente (dueño/familiar)**: armar y desarmar manteniendo apretado, estado de la puerta y la placa en vivo,
+  historial, configurar la placa por Bluetooth eligiendo la red WiFi de una lista, cambiar WiFi y restablecer,
+  contactos de emergencia (SMS) y familiares.
+- **Guardia**: alertas en vivo con sirena; tomar / resolver / falsa alarma, sincronizado entre guardias; casas con
+  filtros; llamar al dueño o a los contactos.
+- **Admin**: usuarios con clave temporal, casas con dueño y familiares y retardo de entrada, placas, estado del sistema.
 
-Para issues o consultas, abrir un ticket en:  
-https://github.com/jairobandera/seguridad-sistema/issues
-
----
-
-**© 2026 - Sistema de Seguridad Residencial**
+## Seguridad
+- Sesiones de 15 min con renovación rotativa. Se revocan al cerrar sesión, al cambiar la clave o al desactivar al usuario.
+- Permisos por rol y por casa en cada endpoint (cubiertos por tests).
+- Cada placa tiene usuario y clave MQTT propios y solo puede usar sus topics.
+- La vinculación usa un código de un solo uso.
+- Cambiar el WiFi de una placa vinculada requiere un token firmado por el servidor.
+- Bluetooth apagado salvo en modo configuración. Nunca se guarda ni se imprime la clave WiFi en el servidor.

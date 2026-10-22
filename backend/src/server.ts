@@ -1,23 +1,28 @@
-import dotenv from "dotenv";
-dotenv.config();
-
-// 🔥 Inicializa MQTT (infra)
-import "./core/mqtt/mqtt";
-
 import http from "http";
-import app from "./app";
-import { initSocket } from "./core/socket/socket";
+import { config } from "./core/config";
+import { logger } from "./core/logger";
+import { prisma } from "./core/prisma";
+import { crearApp } from "./app";
+import { iniciarSocket } from "./core/socket";
+import { cerrarBroker, iniciarBroker } from "./core/mqtt/broker";
+import { detenerManejadoresMqtt, iniciarManejadoresMqtt } from "./modules/dispositivos/dispositivo.mqtt";
 
-// 👈 Convertimos PORT a number
-const PORT = Number(process.env.PORT) || 3000;
+const server = http.createServer(crearApp());
+iniciarSocket(server);
+iniciarBroker(server);
+iniciarManejadoresMqtt();
 
-// 👈 Creamos server HTTP
-const server = http.createServer(app);
-
-// 👈 Inicializamos Socket.IO
-initSocket(server);
-
-// 👈 Permitimos acceso externo (Android)
-server.listen(PORT, "0.0.0.0", () => {
-  console.log(`🚀 Servidor iniciado en http://0.0.0.0:${PORT}`);
+server.listen(config.PORT, "0.0.0.0", () => {
+  logger.info(`Servidor escuchando en http://0.0.0.0:${config.PORT}`);
 });
+
+async function apagar(senal: string) {
+  logger.info(`${senal}: cerrando...`);
+  server.close();
+  await detenerManejadoresMqtt();
+  await cerrarBroker();
+  await prisma.$disconnect();
+  process.exit(0);
+}
+process.on("SIGTERM", () => void apagar("SIGTERM"));
+process.on("SIGINT", () => void apagar("SIGINT"));

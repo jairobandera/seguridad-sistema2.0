@@ -1,8 +1,0 @@
-<resources>
-    <string name="google_app_id">1:493217640960:android:397506de943e0b382fdee5</string>
-    <string name="google_api_key">AIzaSyCH4yLPOnDf9Or6fm7aY3V-1nrGbhpjdj4</string>
-    <string name="project_id">seguridad-app-70a35</string>
-    <string name="firebase_database_url"></string>
-    <string name="gcm_defaultSenderId">493217640960</string>
-    <string name="google_storage_bucket">seguridad-app-70a35.firebasestorage.app</string>
-</resources>

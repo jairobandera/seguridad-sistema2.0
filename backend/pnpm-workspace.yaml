@@ -1,6 +1,9 @@
 allowBuilds:
   '@prisma/client': true
   '@prisma/engines': true
-  bcrypt: true
   prisma: true
   protobufjs: true
+  embedded-postgres: true
+  esbuild: true
+  '@embedded-postgres/windows-x64': true
+  '@embedded-postgres/linux-x64': true

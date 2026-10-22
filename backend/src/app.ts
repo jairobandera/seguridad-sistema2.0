@@ -1,54 +1,52 @@
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
-import meRoutes from "./routes/me.routes";
+import helmet from "helmet";
+import { config } from "./core/config";
+import { prisma } from "./core/prisma";
+import { manejadorErrores, rutaNoEncontrada } from "./core/errores";
+import { autenticar, requerirRol } from "./core/auth/middleware";
+import { estadoBroker } from "./core/mqtt/broker";
+import { authRouter } from "./modules/auth/auth.routes";
+import { meRouter } from "./modules/me/me.routes";
+import { casasRouter } from "./modules/casas/casas.routes";
+import { contactosRouter } from "./modules/contactos/contactos.routes";
+import { dispositivosRouter } from "./modules/dispositivos/dispositivos.routes";
+import { guardiaRouter } from "./modules/guardia/guardia.routes";
+import { adminRouter } from "./modules/admin/admin.routes";
 
-dotenv.config();
+export function crearApp() {
+  const app = express();
+  app.set("trust proxy", 1);
+  app.disable("x-powered-by");
+  app.use(helmet());
+  app.use(cors({ origin: config.corsOrigins.length ? config.corsOrigins : false }));
+  app.use(express.json({ limit: "100kb" }));
 
-const app = express();
+  // Salud: público y liviano (lo usa Render y cron-job.org para mantenerlo despierto)
+  const salud: express.RequestHandler = async (_req, res) => {
+    let db = false;
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      db = true;
+    } catch {
+      db = false;
+    }
+    res.status(db ? 200 : 503).json({ ok: db, db, mqtt: estadoBroker().activo, hora: new Date().toISOString() });
+  };
+  app.get("/health", salud);
+  app.get("/api/health", salud);
 
-// Middlewares base
-app.use(express.json());
-app.use(cors());
+  app.use("/auth", authRouter);
+  app.use("/api/dispositivos", dispositivosRouter); // /provision es público; el resto autentica adentro
 
-// Rutas públicas (NO requieren token)
-import authRoutes from "./routes/auth.routes";
-app.use("/auth", authRoutes);
-app.use("/api/auth", authRoutes); 
-app.use("/api", meRoutes);
+  app.use("/api", autenticar);
+  app.use("/api", meRouter);
+  app.use("/api/casas", casasRouter);
+  app.use("/api/contactos", requerirRol("CLIENTE"), contactosRouter);
+  app.use("/api/guardia", guardiaRouter);
+  app.use("/api/admin", adminRouter);
 
-// ⚠️ IMPORTANTE: aplicar JWT DESPUÉS de /auth
-import { authMiddleware } from "./middleware/auth.middleware";
-app.use("/api", authMiddleware);
-
-// Rutas protegidas
-import usuarioRoutes from "./modules/usuarios/usuario.routes";
-import casaRoutes from "./modules/casas/casa.routes";
-import dispositivoRoutes from "./modules/dispositivos/dispositivo.routes";
-import sensorRoutes from "./modules/sensores/sensor.routes";
-import eventoRoutes from "./modules/eventos/evento.routes";
-import notificacionRoutes from "./modules/notificaciones/notificacion.routes";
-import contactoRoutes from "./modules/contactos/contacto.routes";
-import sesionRoutes from "./modules/sesiones/sesion.routes";
-import logRoutes from "./modules/logs/log.routes";
-import homeRoutes from "./routes/home.routes";
-import guardiaRoutes from "./modules/guardias/guardia.routes";
-
-app.use("/api/usuarios", usuarioRoutes);
-app.use("/api/casa", casaRoutes);
-app.use("/api/dispositivos", dispositivoRoutes);
-app.use("/api/sensores", sensorRoutes);
-app.use("/api/eventos", eventoRoutes);
-app.use("/api/notificaciones", notificacionRoutes);
-app.use("/api/contactos", contactoRoutes);
-app.use("/api/sesiones", sesionRoutes);
-app.use("/api/logs", logRoutes);
-app.use("/home", homeRoutes);
-app.use("/api/guardia", guardiaRoutes);
-
-// Ruta mínima para probar
-app.get("/status", (req, res) => {
-  res.json({ ok: true, message: "Backend funcionando" });
-});
-
-export default app;
+  app.use(rutaNoEncontrada);
+  app.use(manejadorErrores);
+  return app;
+}

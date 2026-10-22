@@ -3,99 +3,167 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
-model Usuario {
-  id            Int      @id @default(autoincrement())
-  nombre        String
-  apellido      String
-  email         String   @unique
-  telefono      String?
-  passwordHash  String
-  rol           String
-  activo        Boolean  @default(true)
-  creadoEn      DateTime @default(now())
-  actualizadoEn DateTime @updatedAt
-  fcmToken  String?
-  
-  casas         Casa[]
-  contactos     ContactoEmergencia[]
-  notificaciones Notificacion[]
-  sesiones      Sesion[]
-  eventosAtendidos EventoEstado[] @relation("GuardiaEventos")
+enum Rol {
+  ADMIN
+  GUARDIA
+  CLIENTE
 }
 
+enum RolCasa {
+  DUENO
+  FAMILIAR
+}
+
+enum Severidad {
+  INFO
+  ALERTA
+  CRITICA
+}
+
+enum EstadoAtencion {
+  PENDIENTE
+  EN_CURSO
+  RESUELTO
+  FALSA_ALARMA
+}
+
+model Usuario {
+  id                  Int      @id @default(autoincrement())
+  nombre              String
+  apellido            String
+  email               String   @unique
+  telefono            String?
+  passwordHash        String
+  rol                 Rol
+  activo              Boolean  @default(true)
+  debeCambiarPassword Boolean  @default(false)
+  tokenVersion        Int      @default(0)
+  creadoEn            DateTime @default(now())
+  actualizadoEn       DateTime @updatedAt
+
+  membresias       CasaMiembro[]
+  contactos        ContactoEmergencia[]
+  notificaciones   Notificacion[]
+  sesiones         Sesion[]
+  pushTokens       PushToken[]
+  codigos          CodigoVinculacion[]
+  eventosAtendidos EventoEstado[]       @relation("GuardiaEventos")
+  eventosGenerados Evento[]             @relation("EventoUsuario")
+}
 
 model Casa {
-  id        Int      @id @default(autoincrement())
-  codigo    String   @unique
-  calle     String?
-  numero    String?
-  manzana   String?
-  barrio    String?
-  alarmaArmada Boolean @default(false)
-  activa    Boolean  @default(true)
-  creadoEn  DateTime @default(now())
+  id                Int      @id @default(autoincrement())
+  codigo            String   @unique
+  nombre            String?
+  calle             String?
+  numero            String?
+  manzana           String?
+  barrio            String?
+  alarmaArmada      Boolean  @default(false)
+  retardoEntradaSeg Int      @default(0)
+  activa            Boolean  @default(true)
+  creadoEn          DateTime @default(now())
 
-  usuarioId Int
-  usuario   Usuario @relation(fields: [usuarioId], references: [id])
-
+  miembros     CasaMiembro[]
   dispositivos Dispositivo[]
   camaras      Camara[]
+  eventos      Evento[]
+  codigos      CodigoVinculacion[]
 }
 
+model CasaMiembro {
+  id        Int      @id @default(autoincrement())
+  rol       RolCasa
+  creadoEn  DateTime @default(now())
+  casaId    Int
+  casa      Casa     @relation(fields: [casaId], references: [id], onDelete: Cascade)
+  usuarioId Int
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([casaId, usuarioId])
+  @@index([usuarioId])
+}
 
 model Dispositivo {
-  id              Int      @id @default(autoincrement())
-  deviceId        String   @unique
+  id              Int       @id @default(autoincrement())
+  deviceId        String    @unique
   nombre          String?
   tipo            String?
   firmwareVersion String?
-  online          Boolean  @default(false)
+  online          Boolean   @default(false)
   ultimaConexion  DateTime?
   wifiSsid        String?
   wifiRssi        Int?
-  creadoEn        DateTime @default(now())
+  ip              String?
+  puertaAbierta   Boolean?
+  secretEnc       String?   @db.Text
+  mqttUsername    String?   @unique
+  mqttPassHash    String?
+  vinculadoEn     DateTime?
+  ultimoSeq       Int       @default(0)
+  creadoEn        DateTime  @default(now())
 
-  casaId     Int?           // <<<<<<<<<<<< OPCIONAL
-  casa       Casa? @relation(fields: [casaId], references: [id])
+  casaId Int?
+  casa   Casa? @relation(fields: [casaId], references: [id], onDelete: SetNull)
 
-  sensores   Sensor[]
-  eventos    Evento[]
+  eventos Evento[]
 }
 
-
-model Sensor {
-  id          Int     @id @default(autoincrement())
-  tipo        String
-  pin         String?
-  descripcion String?
-  activo      Boolean @default(true)
-
-  dispositivoId Int
-  dispositivo   Dispositivo @relation(fields: [dispositivoId], references: [id])
-
-  eventos      Evento[]
+model CodigoVinculacion {
+  id         Int       @id @default(autoincrement())
+  codigoHash String    @unique
+  expiraEn   DateTime
+  usadoEn    DateTime?
+  creadoEn   DateTime  @default(now())
+  casaId     Int
+  casa       Casa      @relation(fields: [casaId], references: [id], onDelete: Cascade)
+  usuarioId  Int
+  usuario    Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 }
-
 
 model Evento {
-  id            Int      @id @default(autoincrement())
-  tipo          String
-  valor         String?
-  fechaHora     DateTime @default(now())
-  origen        String?
+  id           Int       @id @default(autoincrement())
+  tipo         String
+  severidad    Severidad @default(INFO)
+  valor        String?
+  fechaHora    DateTime  @default(now())
+  recibidoEn   DateTime  @default(now())
+  origen       String?
+  seq          Int?
+  alarmaArmada Boolean   @default(false)
 
-  dispositivoId Int
-  dispositivo   Dispositivo @relation(fields: [dispositivoId], references: [id])
-
-  sensorId      Int?
-  sensor        Sensor?  @relation(fields: [sensorId], references: [id])
+  dispositivoId Int?
+  dispositivo   Dispositivo? @relation(fields: [dispositivoId], references: [id], onDelete: SetNull)
+  casaId        Int?
+  casa          Casa?        @relation(fields: [casaId], references: [id], onDelete: SetNull)
+  usuarioId     Int?
+  usuario       Usuario?     @relation("EventoUsuario", fields: [usuarioId], references: [id], onDelete: SetNull)
 
   notificaciones Notificacion[]
-  estado        EventoEstado?
+  estado         EventoEstado?
+
+  @@index([casaId, fechaHora])
+  @@index([tipo, fechaHora])
+  @@index([dispositivoId, fechaHora])
+}
+
+model EventoEstado {
+  id         Int            @id @default(autoincrement())
+  estado     EstadoAtencion @default(PENDIENTE)
+  nota       String?        @db.Text
+  tomadoEn   DateTime?
+  resueltoEn DateTime?
+
+  eventoId  Int      @unique
+  evento    Evento   @relation(fields: [eventoId], references: [id], onDelete: Cascade)
+  guardiaId Int?
+  guardia   Usuario? @relation("GuardiaEventos", fields: [guardiaId], references: [id], onDelete: SetNull)
+
+  @@index([estado])
 }
 
 model ContactoEmergencia {
@@ -104,72 +172,60 @@ model ContactoEmergencia {
   telefono  String
   relacion  String?
   activo    Boolean @default(true)
-
   usuarioId Int
-  usuario   Usuario @relation(fields: [usuarioId], references: [id])
+  usuario   Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 }
 
 model Notificacion {
-  id         Int      @id @default(autoincrement())
-  tipo       String
-  mensaje    String
-  enviadoEn  DateTime @default(now())
-  canal      String?
-  entregado  Boolean  @default(false)
+  id        Int      @id @default(autoincrement())
+  tipo      String
+  mensaje   String   @db.Text
+  canal     String?
+  destino   String?
+  entregado Boolean  @default(false)
+  error     String?  @db.Text
+  enviadoEn DateTime @default(now())
 
-  usuarioId  Int
-  usuario    Usuario @relation(fields: [usuarioId], references: [id])
+  usuarioId Int?
+  usuario   Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  eventoId  Int?
+  evento    Evento?  @relation(fields: [eventoId], references: [id], onDelete: SetNull)
 
-  eventoId   Int
-  evento     Evento  @relation(fields: [eventoId], references: [id])
+  @@index([eventoId])
 }
 
 model Sesion {
-  id          Int      @id @default(autoincrement())
-  jwtToken    String
+  id          Int       @id @default(autoincrement())
+  refreshHash String    @unique
   ip          String?
-  dispositivo String?
-  inicio      DateTime @default(now())
-  expiracion  DateTime?
-  activa      Boolean  @default(true)
-
+  userAgent   String?   @db.Text
+  inicio      DateTime  @default(now())
+  ultimoUso   DateTime?
+  expiracion  DateTime
+  activa      Boolean   @default(true)
   usuarioId   Int
-  usuario     Usuario @relation(fields: [usuarioId], references: [id])
+  usuario     Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+}
+
+model PushToken {
+  id            Int      @id @default(autoincrement())
+  token         String   @unique
+  plataforma    String?
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+  usuarioId     Int
+  usuario       Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 }
 
 model Camara {
   id        Int     @id @default(autoincrement())
   nombre    String
-  urlRTSP   String?
-  urlWebRTC String?
+  urlRTSP   String? @db.Text
+  urlWebRTC String? @db.Text
   activa    Boolean @default(true)
   tipo      String?
-
-  casaId Int
-  casa   Casa @relation(fields: [casaId], references: [id])
+  casaId    Int
+  casa      Casa    @relation(fields: [casaId], references: [id], onDelete: Cascade)
 }
-
-model LogSistema {
-  id        Int      @id @default(autoincrement())
-  nivel     String
-  mensaje   String
-  origen    String?
-  fechaHora DateTime @default(now())
-}
-
-model EventoEstado {
-  id           Int      @id @default(autoincrement())
-  eventoId     Int      @unique
-  leido        Boolean  @default(false)
-  atendido     Boolean  @default(false)
-  leidoEn      DateTime?
-  atendidoEn   DateTime?
-
-  guardiaId    Int?
-  guardia      Usuario? @relation("GuardiaEventos", fields: [guardiaId], references: [id])
-
-  evento       Evento   @relation(fields: [eventoId], references: [id])
-}
-
-
-

@@ -1,44 +1,55 @@
 {
-  "name": "backend",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "seguridad-backend",
+  "version": "2.0.0",
+  "private": true,
   "type": "commonjs",
-  "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "build": "tsc",
-    "start": "npx prisma migrate deploy && node dist/server.js"
+  "engines": {
+    "node": ">=20"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "prisma generate && tsc -p tsconfig.build.json",
+    "start": "node scripts/escribir-ca.js && prisma migrate deploy && node dist/server.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "seed": "tsx prisma/seed.ts",
+    "simular": "tsx scripts/simular-placa.ts"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "dependencies": {
     "@prisma/client": "^5.22.0",
-    "axios": "^1.13.2",
-    "bcrypt": "^6.0.0",
+    "aedes": "0.51.3",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
+    "expo-server-sdk": "^3.15.0",
     "express": "^5.1.0",
-    "firebase-admin": "^12.1.0",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
-    "mqtt": "^5.14.1",
+    "libphonenumber-js": "^1.12.10",
+    "pino": "^9.7.0",
     "socket.io": "^4.8.1",
-    "twilio": "^5.10.6"
+    "twilio": "^5.10.6",
+    "ws": "^8.22.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@types/axios": "^0.9.36",
-    "@types/bcrypt": "^6.0.0",
-    "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.19",
-    "@types/dotenv": "^6.1.1",
     "@types/express": "^5.0.5",
     "@types/jsonwebtoken": "^9.0.10",
-    "@types/mqtt": "^0.0.34",
-    "@types/node": "^24.10.1",
+    "@types/node": "^22.15.0",
+    "@types/supertest": "^6.0.3",
+    "@types/ws": "^8.18.2",
+    "mqtt": "^5.16.1",
+    "pino-pretty": "^13.0.0",
     "prisma": "^5.22.0",
-    "ts-node": "^10.9.2",
-    "ts-node-dev": "^2.0.0",
-    "typescript": "^5.9.3"
-  }
+    "supertest": "^7.1.1",
+    "tsx": "^4.20.3",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  },
+  "packageManager": "pnpm@10.34.7"
 }
