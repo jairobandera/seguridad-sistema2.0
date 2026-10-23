@@ -11,6 +11,7 @@ import { marcarCargado, useSesion } from "@/store/sesion";
 import { conectarTiempoReal } from "@/realtime/socket";
 import { registrarPush } from "@/push/notificaciones";
 import { AlarmaOverlay } from "@/components/AlarmaOverlay";
+import { AvisoActualizacion } from "@/components/AvisoActualizacion";
 import { Cargando, ErrorReintentar } from "@/components/Estados";
 import { rutaInicio } from "@/sesion/acciones";
 import { temaClaro, temaNavegacion, temaOscuro } from "@/tema";
@@ -86,6 +87,7 @@ function Sesion() {
     <>
       <Stack screenOptions={{ headerShown: false }} />
       <AlarmaOverlay />
+      <AvisoActualizacion />
     </>
   );
 }

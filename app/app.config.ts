@@ -4,6 +4,7 @@ import type { ExpoConfig } from "expo/config";
 // APP_VARIANT: "development" (por defecto) permite HTTP en la red local para probar con tu PC.
 // En "production" solo HTTPS.
 const produccion = process.env.APP_VARIANT === "production";
+const PROJECT_ID = "48484418-1134-457b-820d-fb34b4419b0d";
 
 const config: ExpoConfig = {
   name: "Seguridad Hogar",
@@ -64,8 +65,12 @@ const config: ExpoConfig = {
     ],
   ],
   extra: {
-    eas: { projectId: "48484418-1134-457b-820d-fb34b4419b0d" },
+    eas: { projectId: PROJECT_ID },
   },
+  // Actualizaciones por aire (EAS Update): los cambios de JS llegan sin reinstalar.
+  // Un update solo llega a las apps con la misma `version`: si cambia algo nativo, subí la versión y compilá de nuevo.
+  runtimeVersion: { policy: "appVersion" },
+  updates: { url: `https://u.expo.dev/${PROJECT_ID}` },
 };
 
 export default config;

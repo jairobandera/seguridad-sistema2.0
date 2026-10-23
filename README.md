@@ -370,6 +370,14 @@ Sin guardia (casa individual o barrio con la guardia apagada) la alarma avisa al
   - con el **código de familia** (`F-…`, lo genera el dueño en Más → Familia) → se suma como familiar.
 - Guardias y admins los crea el admin (con clave temporal).
 
+## Actualizaciones de la app
+La app de Android y iPhone se actualiza **por aire** (EAS Update): cuando se publica un cambio, al abrirla aparece
+**"Hay una versión nueva → Actualizar"**. Para publicar (desde `app/`, va a Android e iPhone):
+```bash
+npm run publicar
+```
+Cambios nativos (librerías con código nativo, permisos, ícono) necesitan compilar de nuevo y subir `version` en `app.config.ts`.
+
 ## Funciones
 - **Cliente (dueño/familiar)**: armar y desarmar manteniendo apretado, estado de la puerta y la placa en vivo,
   historial, configurar la placa por Bluetooth eligiendo la red WiFi de una lista, cambiar WiFi y restablecer,
