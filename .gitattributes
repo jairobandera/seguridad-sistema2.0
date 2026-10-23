@@ -1,0 +1,3 @@
+# Prisma guarda un checksum exacto de cada migración aplicada: si Git le cambia los finales de
+# línea (CRLF en Windows), `prisma migrate dev` las da por modificadas. Siempre LF.
+backend/prisma/migrations/** text eol=lf
