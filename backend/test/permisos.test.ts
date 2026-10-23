@@ -64,6 +64,36 @@ describe("admin", () => {
     const r = await request(app).put(`/api/admin/usuarios/${e.admin.id}`).set(auth(e.t.admin)).send({ activo: false });
     expect(r.status).toBe(400);
   });
+
+  it("barrios: solo el admin los gestiona; nombre único", async () => {
+    expect((await request(app).post("/api/admin/barrios").set(auth(e.t.guardia)).send({ nombre: "Otro" })).status).toBe(403);
+    const r = await request(app).post("/api/admin/barrios").set(auth(e.t.admin)).send({ nombre: "Los Pinos", tieneGuardia: false });
+    expect(r.status).toBe(201);
+    expect(r.body.tieneGuardia).toBe(false);
+    expect((await request(app).post("/api/admin/barrios").set(auth(e.t.admin)).send({ nombre: "Los Pinos" })).status).toBe(409);
+  });
+
+  it("paquete: Barrio exige barrio; Individual no tiene barrio ni guardia", async () => {
+    const sinBarrio = await request(app).post("/api/admin/casas").set(auth(e.t.admin)).send({ calle: "A", paquete: "BARRIO" });
+    expect(sinBarrio.status).toBe(400);
+    const ind = await request(app)
+      .post("/api/admin/casas")
+      .set(auth(e.t.admin))
+      .send({ calle: "B", paquete: "INDIVIDUAL", barrioId: e.barrio.id });
+    expect(ind.status).toBe(201);
+    expect(ind.body.barrioId).toBeNull();
+    expect(ind.body.tieneGuardia).toBe(false);
+    const sistemas = await request(app).get("/api/admin/sistemas").set(auth(e.t.admin));
+    expect(sistemas.body.individuales.casas).toBeGreaterThanOrEqual(2);
+    expect(sistemas.body.barrios.find((b: { id: number }) => b.id === e.barrio.id).guardias).toHaveLength(1);
+  });
+
+  it("los barrios de un guardia se guardan y se devuelven", async () => {
+    const r = await request(app).put(`/api/admin/usuarios/${e.guardia.id}`).set(auth(e.t.admin)).send({ barrioIds: [e.barrio.id] });
+    expect(r.status).toBe(200);
+    const lista = await request(app).get("/api/admin/usuarios?rol=GUARDIA").set(auth(e.t.admin));
+    expect(lista.body.find((u: { id: number }) => u.id === e.guardia.id).barrioIds).toEqual([e.barrio.id]);
+  });
 });
 
 describe("casas", () => {
@@ -120,6 +150,27 @@ describe("placas", () => {
     expect(ok.body.mqtt.user).toBe("C1B2C3D4E5F6");
     const reuso = await request(app).post("/api/dispositivos/provision").send({ deviceId: "D1B2C3D4E5F6", codigo: r.body.codigo, secret });
     expect(reuso.status).toBe(400);
+
+    // Si a la placa no le llegó la respuesta, puede repetir el canje (misma placa y mismo secreto)
+    const reintento = await request(app).post("/api/dispositivos/provision").send({ deviceId: "C1B2C3D4E5F6", codigo: r.body.codigo, secret });
+    expect(reintento.status).toBe(200);
+    expect(reintento.body.mqtt.pass).not.toBe(ok.body.mqtt.pass);
+    const otroSecreto = await request(app)
+      .post("/api/dispositivos/provision")
+      .send({ deviceId: "C1B2C3D4E5F6", codigo: r.body.codigo, secret: "ef".repeat(32) });
+    expect(otroSecreto.status).toBe(400);
+    // Respuesta liviana para el ESP32: sin las cabeceras de seguridad web
+    expect(reintento.headers["content-security-policy"]).toBeUndefined();
+    expect(reintento.headers["ratelimit-policy"]).toBeUndefined();
+  });
+
+  it("reiniciar: solo dueño o admin; si no está conectado avisa que hay que desenchufarlo", async () => {
+    const ruta = `/api/dispositivos/${dispositivoId}/reiniciar`;
+    expect((await request(app).post(ruta).set(auth(e.t.familiar))).status).toBe(403);
+    expect((await request(app).post(ruta).set(auth(e.t.ajeno))).status).toBe(404);
+    const r = await request(app).post(ruta).set(auth(e.t.dueno));
+    expect(r.status).toBe(202);
+    expect(r.body.mensaje).toMatch(/Desenchufalo/);
   });
 
   it("ya no existen los endpoints que permitían falsear eventos o estados", async () => {

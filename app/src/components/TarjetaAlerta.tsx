@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { Button, Card, Chip, Dialog, HelperText, Portal, SegmentedButtons, Text, TextInput, useTheme } from "react-native-paper";
+import { Button, Card, Chip, Dialog, HelperText, Portal, SegmentedButtons, Text, useTheme } from "react-native-paper";
+import { Campo } from "@/components/Campo";
 import { router } from "expo-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { guardia } from "@/api/endpoints";
@@ -81,7 +82,7 @@ export function TarjetaAlerta({ evento }: { evento: Evento }) {
                 { value: "FALSA_ALARMA", label: "Falsa alarma" },
               ]}
             />
-            <TextInput label="Nota (opcional)" mode="outlined" multiline value={nota} onChangeText={setNota} placeholder="¿Qué pasó?" />
+            <Campo label="Nota (opcional)" mode="outlined" multiline value={nota} onChangeText={setNota} placeholder="¿Qué pasó?" />
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setResolviendo(false)}>Cancelar</Button>

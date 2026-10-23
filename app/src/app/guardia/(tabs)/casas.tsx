@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { FlatList, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { Appbar, Badge, Card, Chip, Icon, Searchbar, Text, useTheme } from "react-native-paper";
+import { sinSugerencias } from "@/components/Campo";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { guardia } from "@/api/endpoints";
@@ -15,8 +16,8 @@ const FILTROS: { valor: Filtro; texto: string; cumple: (c: CasaGuardia) => boole
   { valor: "todas", texto: "Todas", cumple: () => true },
   { valor: "alertas", texto: "Con alertas", cumple: (c) => c.alertasAbiertas > 0 },
   { valor: "armadas", texto: "Armadas", cumple: (c) => c.alarmaArmada },
-  { valor: "abiertas", texto: "Puerta abierta", cumple: (c) => c.puertaAbierta },
-  { valor: "offline", texto: "Sin conexión", cumple: (c) => c.tienePlaca && !c.online },
+  { valor: "abiertas", texto: "Abierta", cumple: (c) => c.puertaAbierta },
+  { valor: "offline", texto: "Sin conexión", cumple: (c) => c.dispositivosOffline > 0 },
 ];
 
 export default function CasasGuardia() {
@@ -39,7 +40,7 @@ export default function CasasGuardia() {
       <Appbar.Header>
         <Appbar.Content title="Casas" />
       </Appbar.Header>
-      <Searchbar placeholder="Buscar por dirección o dueño" value={busqueda} onChangeText={setBusqueda} style={{ marginHorizontal: 16 }} />
+      <Searchbar {...sinSugerencias} placeholder="Buscar por dirección o dueño" value={busqueda} onChangeText={setBusqueda} style={{ marginHorizontal: 16 }} />
       <View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ padding: 12, gap: 8 }}>
           {FILTROS.map((f) => (
@@ -74,13 +75,17 @@ export default function CasasGuardia() {
                 </Text>
                 <View style={[estilos.fila, { marginTop: 8, gap: 16 }]}>
                   <Estado icono={c.alarmaArmada ? "shield-lock" : "shield-off-outline"} texto={c.alarmaArmada ? "Armada" : "Desarmada"} color={c.alarmaArmada ? colores.ok : colores.apagado} />
-                  {c.tienePlaca ? (
+                  {c.cantidadDispositivos > 0 ? (
                     <>
                       <Estado icono={c.puertaAbierta ? "door-open" : "door-closed"} texto={c.puertaAbierta ? "Abierta" : "Cerrada"} color={c.puertaAbierta ? colores.peligro : colores.ok} />
-                      <Estado icono={c.online ? "wifi" : "wifi-off"} texto={c.online ? "Online" : "Offline"} color={c.online ? colores.ok : colores.peligro} />
+                      <Estado
+                        icono={c.dispositivosOffline ? "wifi-off" : "wifi"}
+                        texto={`${c.cantidadDispositivos - c.dispositivosOffline}/${c.cantidadDispositivos} online`}
+                        color={c.dispositivosOffline ? colores.peligro : colores.ok}
+                      />
                     </>
                   ) : (
-                    <Estado icono="chip" texto="Sin placa" color={colores.apagado} />
+                    <Estado icono="chip" texto="Sin dispositivos" color={colores.apagado} />
                   )}
                 </View>
               </Card.Content>

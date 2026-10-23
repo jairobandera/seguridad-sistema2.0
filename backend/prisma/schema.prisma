@@ -31,6 +31,34 @@ enum EstadoAtencion {
   FALSA_ALARMA
 }
 
+// BARRIO: casa dentro de un barrio (con o sin guardia). INDIVIDUAL: casa suelta, sin guardia.
+enum Paquete {
+  BARRIO
+  INDIVIDUAL
+}
+
+model Barrio {
+  id           Int      @id @default(autoincrement())
+  nombre       String   @unique
+  tieneGuardia Boolean  @default(true)
+  activo       Boolean  @default(true)
+  creadoEn     DateTime @default(now())
+
+  casas    Casa[]
+  guardias GuardiaBarrio[]
+}
+
+// Barrios que cubre cada guardia (uno puede cubrir varios)
+model GuardiaBarrio {
+  usuarioId Int
+  usuario   Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  barrioId  Int
+  barrio    Barrio  @relation(fields: [barrioId], references: [id], onDelete: Cascade)
+
+  @@id([usuarioId, barrioId])
+  @@index([barrioId])
+}
+
 model Usuario {
   id                  Int      @id @default(autoincrement())
   nombre              String
@@ -53,6 +81,7 @@ model Usuario {
   codigos          CodigoVinculacion[]
   eventosAtendidos EventoEstado[]       @relation("GuardiaEventos")
   eventosGenerados Evento[]             @relation("EventoUsuario")
+  barriosGuardia   GuardiaBarrio[]
 }
 
 model Casa {
@@ -62,7 +91,9 @@ model Casa {
   calle             String?
   numero            String?
   manzana           String?
-  barrio            String?
+  paquete           Paquete  @default(BARRIO)
+  barrioId          Int?
+  barrio            Barrio?  @relation(fields: [barrioId], references: [id], onDelete: SetNull)
   alarmaArmada      Boolean  @default(false)
   retardoEntradaSeg Int      @default(0)
   activa            Boolean  @default(true)
@@ -73,6 +104,8 @@ model Casa {
   camaras      Camara[]
   eventos      Evento[]
   codigos      CodigoVinculacion[]
+
+  @@index([barrioId])
 }
 
 model CasaMiembro {
@@ -98,8 +131,14 @@ model Dispositivo {
   ultimaConexion  DateTime?
   wifiSsid        String?
   wifiRssi        Int?
+  bateria         Int?
+  bateriaMv       Int?
+  // Último aviso de batería baja enviado (20 o 10 %); se borra al pasar el 30 % (cargada)
+  avisoBateria    Int?
   ip              String?
   puertaAbierta   Boolean?
+  // Armado parcial: quedó afuera de la alarma en este armado (se limpia al desarmar)
+  excluidoAlarma  Boolean   @default(false)
   secretEnc       String?   @db.Text
   mqttUsername    String?   @unique
   mqttPassHash    String?
@@ -114,15 +153,17 @@ model Dispositivo {
 }
 
 model CodigoVinculacion {
-  id         Int       @id @default(autoincrement())
-  codigoHash String    @unique
-  expiraEn   DateTime
-  usadoEn    DateTime?
-  creadoEn   DateTime  @default(now())
-  casaId     Int
-  casa       Casa      @relation(fields: [casaId], references: [id], onDelete: Cascade)
-  usuarioId  Int
-  usuario    Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  id                Int       @id @default(autoincrement())
+  codigoHash        String    @unique
+  expiraEn          DateTime
+  usadoEn           DateTime?
+  creadoEn          DateTime  @default(now())
+  // Nombre que eligió el dueño para el dispositivo ("Puerta trasera")
+  nombreDispositivo String?
+  casaId            Int
+  casa              Casa      @relation(fields: [casaId], references: [id], onDelete: Cascade)
+  usuarioId         Int
+  usuario           Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 }
 
 model Evento {

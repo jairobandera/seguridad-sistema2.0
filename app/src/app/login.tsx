@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "react-native";
-import { Button, HelperText, Icon, Text, TextInput, useTheme } from "react-native-paper";
+import { Button, HelperText, Icon, Text, useTheme } from "react-native-paper";
+import { Campo } from "@/components/Campo";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { auth } from "@/api/endpoints";
 import { mensajeDeError } from "@/api/cliente";
@@ -41,28 +42,24 @@ export default function Login() {
             </Text>
           </View>
 
-          <TextInput
+          <Campo
             label="Email"
             mode="outlined"
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
-            autoComplete="email"
             keyboardType="email-address"
-            textContentType="username"
-            left={<TextInput.Icon icon="email-outline" />}
+            left={<Campo.Icon icon="email-outline" />}
           />
-          <TextInput
+          <Campo
             label="Contraseña"
             mode="outlined"
             value={password}
             onChangeText={setPassword}
             secureTextEntry={!verClave}
-            autoComplete="current-password"
-            textContentType="password"
             style={{ marginTop: 12 }}
-            left={<TextInput.Icon icon="lock-outline" />}
-            right={<TextInput.Icon icon={verClave ? "eye-off" : "eye"} onPress={() => setVerClave((v) => !v)} />}
+            left={<Campo.Icon icon="lock-outline" />}
+            right={<Campo.Icon icon={verClave ? "eye-off" : "eye"} onPress={() => setVerClave((v) => !v)} />}
             onSubmitEditing={entrar}
           />
           <HelperText type="error" visible={!!error}>

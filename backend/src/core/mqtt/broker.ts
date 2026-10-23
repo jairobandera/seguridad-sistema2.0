@@ -34,6 +34,13 @@ function errorAuth(): AuthenticateError {
   return e;
 }
 
+// Falla nuestra (ej. MySQL todavía no arrancó): la placa no debe tomarlo como desvinculación
+function errorServidor(): AuthenticateError {
+  const e = new Error("Servidor no disponible") as AuthenticateError;
+  e.returnCode = 3; // SERVER_UNAVAILABLE
+  return e;
+}
+
 // `clients` existe en Aedes pero no está en sus tipos
 const clientesDe = (b: Aedes | null) => ((b as unknown as { clients?: Record<string, Client> })?.clients ?? {});
 
@@ -58,7 +65,7 @@ export function crearBroker(): Aedes {
         done(null, true);
       })().catch((err) => {
         logger.error({ err }, "MQTT: error autenticando");
-        done(errorAuth(), false);
+        done(errorServidor(), false);
       });
     },
     authorizePublish: (client, packet, cb) => {

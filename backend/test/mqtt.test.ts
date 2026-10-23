@@ -6,6 +6,7 @@ import { prisma } from "../src/core/prisma";
 import { cerrarBroker, crearBroker } from "../src/core/mqtt/broker";
 import { enviarComando } from "../src/core/mqtt/comandos";
 import { detenerManejadoresMqtt, iniciarManejadoresMqtt } from "../src/modules/dispositivos/dispositivo.mqtt";
+import { estadoCasa } from "../src/modules/alarma/alarma.service";
 import { escenario, limpiarBase, vincularPlaca } from "./ayudas";
 
 vi.mock("../src/core/notificaciones/push", () => ({ enviarPush: vi.fn(async () => 1), esTokenPushValido: () => true }));
@@ -69,6 +70,16 @@ describe("broker MQTT", () => {
     expect(
       await esperar(async () => (await prisma.dispositivo.findUniqueOrThrow({ where: { deviceId: DEVICE } })).wifiSsid === "MiWifi"),
     ).toBe(true);
+  });
+
+  it("guarda la batería de la telemetría y la incluye en el estado de la casa", async () => {
+    const c = clientes.find((x) => x.options.clientId === DEVICE && x.connected)!;
+    c.publish(`dev/${DEVICE}/telemetry`, JSON.stringify({ rssi: -52, bat: 55, mv: 3820 }), { qos: 0 });
+    expect(
+      await esperar(async () => (await prisma.dispositivo.findUniqueOrThrow({ where: { deviceId: DEVICE } })).bateria === 55),
+    ).toBe(true);
+    const d = await prisma.dispositivo.findUniqueOrThrow({ where: { deviceId: DEVICE } });
+    expect((await estadoCasa(d.casaId!))?.dispositivos.find((x) => x.deviceId === DEVICE)?.bateria).toBe(55);
   });
 
   it("una placa no puede publicar como otra (no se crean eventos falsos)", async () => {

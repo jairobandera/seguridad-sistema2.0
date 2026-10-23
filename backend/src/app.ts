@@ -18,7 +18,9 @@ export function crearApp() {
   const app = express();
   app.set("trust proxy", 1);
   app.disable("x-powered-by");
-  app.use(helmet());
+  // Las cabeceras de seguridad web (~1 KB) no sirven para la placa y le llenan el búfer HTTP del ESP32
+  const cabecerasWeb = helmet();
+  app.use((req, res, next) => (req.path === "/api/dispositivos/provision" ? next() : cabecerasWeb(req, res, next)));
   app.use(cors({ origin: config.corsOrigins.length ? config.corsOrigins : false }));
   app.use(express.json({ limit: "100kb" }));
 

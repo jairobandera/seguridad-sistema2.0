@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { FlatList, RefreshControl, ScrollView, View } from "react-native";
 import { Appbar, Chip, FAB, List, Searchbar, useTheme } from "react-native-paper";
+import { sinSugerencias } from "@/components/Campo";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { admin } from "@/api/endpoints";
@@ -27,7 +28,7 @@ export default function Usuarios() {
       <Appbar.Header>
         <Appbar.Content title="Usuarios" />
       </Appbar.Header>
-      <Searchbar placeholder="Buscar por nombre o email" value={q} onChangeText={setQ} style={{ marginHorizontal: 16 }} />
+      <Searchbar {...sinSugerencias} placeholder="Buscar por nombre o email" value={q} onChangeText={setQ} style={{ marginHorizontal: 16 }} />
       <View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ padding: 12, gap: 8 }}>
           {ROLES.map((r) => (

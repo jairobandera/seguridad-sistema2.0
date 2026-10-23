@@ -9,6 +9,44 @@
 
 Imán cerca = puerta **cerrada**. Si se corta el cable del sensor, la placa lo toma como **abierta** (falla segura).
 
+## Batería 18650 (opcional)
+El firmware ya mide la batería y la app muestra el **%** apenas está conectada. Sin batería no se muestra nada.
+
+### Qué comprar
+| Componente | Para qué |
+|---|---|
+| Celda **18650** (3.7 V) + portapila | La batería |
+| Módulo **TP4056** (el que tiene protección: 6 pines, con chip DW01) | Cargarla por USB y protegerla |
+| Elevador **MT3608** (o similar) regulado a **5 V** | La 18650 sola (3.0–4.2 V) **no** alcanza para el pin VIN de la placa |
+| 2 resistencias de **100 kΩ** | Divisor para medir la tensión |
+| 1 capacitor de **100 nF** (opcional) | Estabiliza la medición |
+
+### Cómo se conecta
+```
+18650 (+) ──► TP4056 B+          18650 (–) ──► TP4056 B–
+
+TP4056 OUT+ ──► MT3608 IN+ ──(regular a 5,0 V con el tornillito ANTES de conectar)──► MT3608 OUT+ ──► ESP32 VIN
+TP4056 OUT– ──► MT3608 IN– ─────────────────────────────────────────────────────► MT3608 OUT– ──► ESP32 GND
+
+Medición (divisor):
+TP4056 OUT+ ──[100 kΩ]──┬──► ESP32 GPIO34
+                        ├──[100 kΩ]──► GND
+                        └──[100 nF]──► GND   (opcional)
+```
+- El divisor reduce la tensión a la mitad: 4,2 V de la batería llegan como 2,1 V al pin, que es seguro para el ESP32.
+- **GPIO34** porque funciona con el WiFi prendido (es del ADC1). No uses pines del ADC2 (GPIO 0, 2, 4, 12–15, 25–27).
+- Con el multímetro, ajustá el MT3608 a **5,0 V** antes de conectarlo a la placa.
+- La batería se carga enchufando USB al **TP4056** (luz roja = cargando, azul/verde = cargada).
+
+### Cómo comprobarlo
+En el Monitor Serie (115200) aparece cada 60 s:
+```
+[bateria] 3912 mV (72 %)
+```
+Compará los mV con el multímetro en la batería: tienen que dar parecido (±100 mV).
+Si no aparece la línea, la placa no detecta batería: revisá el divisor (con la batería conectada, GPIO34 tiene que medir la mitad de la batería).
+Si tu divisor usa otras resistencias, cambiá `BATERIA_DIVISOR` en `config.h` por `(R1 + R2) / R2`.
+
 ## Cómo subirlo con Arduino IDE
 1. Abrí `firmware/seguridad_esp32/seguridad_esp32.ino` (se abren todas las pestañas solas).
 2. **Herramientas → Placa → esp32 → ESP32 Dev Module** (core "esp32 by Espressif" 3.x).

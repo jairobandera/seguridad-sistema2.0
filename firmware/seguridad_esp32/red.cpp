@@ -191,15 +191,27 @@ RespuestaProvision provisionar(const String& api, const String& deviceId, const 
   esp_http_client_config_t cfg = {};
   cfg.url = url.c_str();
   cfg.method = HTTP_METHOD_POST;
-  cfg.timeout_ms = 12000;
+  cfg.timeout_ms = 10000;
+  cfg.buffer_size = 2048;  // las cabeceras de la respuesta pueden superar los 512 bytes por defecto
+  cfg.buffer_size_tx = 1024;
+  cfg.keep_alive_enable = false;
   cfg.crt_bundle_attach = esp_crt_bundle_attach;  // valida HTTPS con los certificados raíz incluidos
   esp_http_client_handle_t cli = esp_http_client_init(&cfg);
   if (!cli) return resp;
   esp_http_client_set_header(cli, "Content-Type", "application/json");
+  esp_http_client_set_header(cli, "Connection", "close");
 
-  if (esp_http_client_open(cli, json.length()) == ESP_OK) {
-    esp_http_client_write(cli, json.c_str(), json.length());
-    esp_http_client_fetch_headers(cli);
+  esp_err_t err = esp_http_client_open(cli, json.length());
+  if (err != ESP_OK) {
+    Serial.printf("[red] no se pudo conectar a %s (%s)\n", url.c_str(), esp_err_to_name(err));
+  } else if (esp_http_client_write(cli, json.c_str(), json.length()) != static_cast<int>(json.length())) {
+    resp.http = -1;
+    Serial.println("[red] provision: no se pudo enviar el pedido");
+  } else if (esp_http_client_fetch_headers(cli) < 0) {
+    // El servidor puede haber vinculado igual: la placa reintenta y el servidor reconoce el reintento
+    resp.http = -1;
+    Serial.printf("[red] provision: no llego la respuesta (errno %d)\n", esp_http_client_get_errno(cli));
+  } else {
     resp.http = esp_http_client_get_status_code(cli);
     String respuesta;
     char buf[256];
@@ -217,9 +229,8 @@ RespuestaProvision provisionar(const String& api, const String& deviceId, const 
         resp.error = doc["error"] | "";
       }
     }
+    if (resp.http != 200) Serial.printf("[red] provision respondio HTTP %d %s\n", resp.http, resp.error.c_str());
   }
-  if (resp.http == 0) Serial.printf("[red] no se pudo conectar a %s\n", url.c_str());
-  else if (resp.http != 200) Serial.printf("[red] provision respondio HTTP %d %s\n", resp.http, resp.error.c_str());
   esp_http_client_cleanup(cli);
   return resp;
 }

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ScrollView, View } from "react-native";
-import { Appbar, Button, Dialog, HelperText, Portal, SegmentedButtons, Snackbar, Switch, Text, TextInput } from "react-native-paper";
+import { Appbar, Button, Chip, Dialog, HelperText, Portal, SegmentedButtons, Snackbar, Switch, Text } from "react-native-paper";
+import { Campo } from "@/components/Campo";
 import { router, useLocalSearchParams } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { admin } from "@/api/endpoints";
@@ -24,6 +25,7 @@ function UsuarioForm({ id, existente }: { id: string; existente: UsuarioAdmin | 
   const nuevo = !existente;
   const yo = useSesion((s) => s.usuario);
   const qc = useQueryClient();
+  const barrios = useQuery({ queryKey: ["admin", "barrios"], queryFn: admin.barrios });
 
   const [nombre, setNombre] = useState(existente?.nombre ?? "");
   const [apellido, setApellido] = useState(existente?.apellido ?? "");
@@ -31,6 +33,7 @@ function UsuarioForm({ id, existente }: { id: string; existente: UsuarioAdmin | 
   const [telefono, setTelefono] = useState(existente?.telefono ?? "");
   const [rol, setRol] = useState<Rol>(existente?.rol ?? "CLIENTE");
   const [activo, setActivo] = useState(existente?.activo ?? true);
+  const [barrioIds, setBarrioIds] = useState<number[]>(existente?.barrioIds ?? []);
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [clave, setClave] = useState<string | null>(null);
@@ -46,7 +49,14 @@ function UsuarioForm({ id, existente }: { id: string; existente: UsuarioAdmin | 
     setGuardando(true);
     setError(null);
     try {
-      const datos = { nombre: nombre.trim(), apellido: apellido.trim(), email: email.trim(), telefono: tel.e164, rol };
+      const datos = {
+        nombre: nombre.trim(),
+        apellido: apellido.trim(),
+        email: email.trim(),
+        telefono: tel.e164,
+        rol,
+        ...(rol === "GUARDIA" ? { barrioIds } : {}),
+      };
       if (nuevo) {
         const r = await admin.crearUsuario(datos);
         qc.invalidateQueries({ queryKey: ["admin", "usuarios"] });
@@ -80,10 +90,10 @@ function UsuarioForm({ id, existente }: { id: string; existente: UsuarioAdmin | 
         <Appbar.Content title={nuevo ? "Nuevo usuario" : "Editar usuario"} />
       </Appbar.Header>
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} keyboardShouldPersistTaps="handled">
-        <TextInput label="Nombre" mode="outlined" value={nombre} onChangeText={setNombre} />
-        <TextInput label="Apellido" mode="outlined" value={apellido} onChangeText={setApellido} />
-        <TextInput label="Email" mode="outlined" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
-        <TextInput
+        <Campo label="Nombre" mode="outlined" value={nombre} onChangeText={setNombre} />
+        <Campo label="Apellido" mode="outlined" value={apellido} onChangeText={setApellido} />
+        <Campo label="Email" mode="outlined" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
+        <Campo
           label="Celular (opcional, recibe los SMS de alarma)"
           mode="outlined"
           keyboardType="phone-pad"
@@ -102,6 +112,28 @@ function UsuarioForm({ id, existente }: { id: string; existente: UsuarioAdmin | 
             { value: "ADMIN", label: "Admin", disabled: soyYo },
           ]}
         />
+        {rol === "GUARDIA" ? (
+          <>
+            <Text variant="labelLarge">Barrios que cuida</Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+              {(barrios.data ?? []).map((b) => (
+                <Chip
+                  key={b.id}
+                  selected={barrioIds.includes(b.id)}
+                  onPress={() => setBarrioIds((l) => (l.includes(b.id) ? l.filter((x) => x !== b.id) : [...l, b.id]))}
+                >
+                  {b.nombre}
+                  {b.tieneGuardia ? "" : " (sin guardia)"}
+                </Chip>
+              ))}
+            </View>
+            <HelperText type="info">
+              {barrios.data?.length
+                ? "Solo ve y recibe las alarmas de las casas de estos barrios (si el barrio tiene la guardia activada)."
+                : "No hay barrios: crealos en la pestaña Sistemas."}
+            </HelperText>
+          </>
+        ) : null}
         {!nuevo ? (
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 8 }}>
             <Text variant="bodyLarge">Usuario activo</Text>

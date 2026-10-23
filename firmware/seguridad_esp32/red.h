@@ -29,7 +29,7 @@ String ip();
 bool horaValida();
 
 struct RespuestaProvision {
-  int http = 0;  // 0 = no se pudo conectar
+  int http = 0;  // 0 = no se pudo conectar; -1 = no llegó la respuesta
   String error;
   String mqttUrl, mqttUser, mqttPass;
 };

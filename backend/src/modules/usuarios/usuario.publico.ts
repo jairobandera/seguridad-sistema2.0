@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
+import { aplanarBarrio } from "../barrios/barrio.service";
 import { prisma } from "../../core/prisma";
 
 /** Campos que se pueden devolver de un usuario (nunca passwordHash ni tokenVersion). */
@@ -24,11 +25,13 @@ export async function usuarioConCasas(id: number) {
     where: { id },
     select: {
       ...selectUsuarioPublico,
-      membresias: { select: { rol: true, casa: { select: { id: true, nombre: true, calle: true, numero: true, barrio: true } } } },
+      membresias: {
+        select: { rol: true, casa: { select: { id: true, nombre: true, calle: true, numero: true, paquete: true, barrio: { select: { nombre: true } } } } },
+      },
     },
   });
   const { membresias, ...resto } = u;
-  return { ...resto, casas: membresias.map((m) => ({ ...m.casa, rolCasa: m.rol })) };
+  return { ...resto, casas: membresias.map((m) => ({ ...aplanarBarrio(m.casa), rolCasa: m.rol })) };
 }
 
 export const hashPassword = (p: string) => bcrypt.hash(p, 10);

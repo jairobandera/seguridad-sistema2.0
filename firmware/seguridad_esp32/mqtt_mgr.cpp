@@ -119,7 +119,7 @@ bool recienConectado() {
 
 int rechazos() { return rechazos_; }
 
-int publicarEstado(bool puertaAbierta, const String& ssid, int rssi, const String& ip) {
+int publicarEstado(bool puertaAbierta, const String& ssid, int rssi, const String& ip, const bateria::Lectura& bat) {
   JsonDocument doc;
   doc["online"] = true;
   doc["puerta"] = puertaAbierta ? "abierta" : "cerrada";
@@ -127,6 +127,10 @@ int publicarEstado(bool puertaAbierta, const String& ssid, int rssi, const Strin
   doc["ssid"] = ssid;
   if (rssi < 0) doc["rssi"] = rssi;
   doc["ip"] = ip;
+  if (bat.pct >= 0) {
+    doc["bat"] = bat.pct;
+    doc["mv"] = bat.mv;
+  }
   return publicar(topicEstado_, doc, 1, true);
 }
 
@@ -138,11 +142,15 @@ int publicarEvento(const EventoPuerta& e) {
   return publicar(base_ + "/event", doc, 1, false);
 }
 
-int publicarTelemetria(int rssi) {
+int publicarTelemetria(int rssi, const bateria::Lectura& bat) {
   JsonDocument doc;
   if (rssi < 0) doc["rssi"] = rssi;
   doc["uptime"] = millis() / 1000;
   doc["heap"] = ESP.getFreeHeap();
+  if (bat.pct >= 0) {
+    doc["bat"] = bat.pct;
+    doc["mv"] = bat.mv;
+  }
   return publicar(base_ + "/telemetry", doc, 0, false);
 }
 

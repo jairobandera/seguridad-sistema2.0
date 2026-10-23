@@ -4,12 +4,15 @@ export type Rol = "ADMIN" | "GUARDIA" | "CLIENTE";
 export type RolCasa = "DUENO" | "FAMILIAR";
 export type Severidad = "INFO" | "ALERTA" | "CRITICA";
 export type EstadoAtencion = "PENDIENTE" | "EN_CURSO" | "RESUELTO" | "FALSA_ALARMA";
+/** BARRIO: casa dentro de un barrio (con o sin guardia). INDIVIDUAL: casa suelta, sin guardia. */
+export type Paquete = "BARRIO" | "INDIVIDUAL";
 
 export interface CasaResumen {
   id: number;
   nombre: string | null;
   calle: string | null;
   numero: string | null;
+  paquete: Paquete;
   barrio: string | null;
   rolCasa: RolCasa;
 }
@@ -32,11 +35,19 @@ export interface Sesion {
   usuario: Usuario;
 }
 
-export interface DispositivoEstado {
+/** Un dispositivo de la casa ("Puerta principal", "Ventana cocina"...) con su estado en vivo. */
+export interface DispositivoCasa {
   id: number;
   deviceId: string;
   nombre: string | null;
   online: boolean;
+  puertaAbierta: boolean | null;
+  rssi: number | null;
+  ssid: string | null;
+  /** % de la batería (null si no tiene batería conectada) */
+  bateria: number | null;
+  /** Armado parcial: quedó afuera de la alarma (no la dispara) */
+  excluido: boolean;
   firmwareVersion: string | null;
   ultimaConexion: string | null;
 }
@@ -44,11 +55,15 @@ export interface DispositivoEstado {
 export interface EstadoCasa {
   casaId: number;
   alarmaArmada: boolean;
+  /** Alguno abierto */
   puertaAbierta: boolean;
+  /** Todos conectados */
   online: boolean;
-  rssi: number | null;
-  ssid: string | null;
-  dispositivo: DispositivoEstado | null;
+  dispositivosOffline: number;
+  /** Armada dejando algún dispositivo afuera */
+  armadoParcial: boolean;
+  tieneGuardia: boolean;
+  dispositivos: DispositivoCasa[];
 }
 
 export interface Casa {
@@ -58,6 +73,7 @@ export interface Casa {
   calle: string | null;
   numero: string | null;
   manzana: string | null;
+  paquete: Paquete;
   barrio: string | null;
   alarmaArmada: boolean;
   retardoEntradaSeg: number;
@@ -71,6 +87,8 @@ export interface Evento {
   severidad: Severidad;
   fechaHora: string;
   alarmaArmada: boolean;
+  /** Dato extra del evento (ej. % de batería en BATERIA_BAJA) */
+  valor: string | null;
   casa: { id: number; nombre: string | null; calle: string | null; numero: string | null; manzana: string | null; barrio: string | null } | null;
   dispositivo: { deviceId: string; nombre: string | null } | null;
   usuario: { id: number; nombre: string } | null;
@@ -110,7 +128,7 @@ export interface ResumenGuardia {
   enCurso: number;
   casasArmadas: number;
   casasActivas: number;
-  placasOffline: number;
+  dispositivosOffline: number;
   puertasAbiertas: number;
 }
 
@@ -124,8 +142,8 @@ export interface CasaGuardia {
   barrio: string | null;
   alarmaArmada: boolean;
   dueno: { nombre: string; telefono: string | null } | null;
-  tienePlaca: boolean;
-  online: boolean;
+  cantidadDispositivos: number;
+  dispositivosOffline: number;
   puertaAbierta: boolean;
   alertasAbiertas: number;
 }
@@ -155,6 +173,28 @@ export interface UsuarioAdmin {
   activo: boolean;
   debeCambiarPassword: boolean;
   membresias?: { rol: RolCasa; casaId: number }[];
+  /** Barrios que cubre (solo guardias) */
+  barrioIds?: number[];
+}
+
+export interface Barrio {
+  id: number;
+  nombre: string;
+  tieneGuardia: boolean;
+  activo: boolean;
+}
+
+export interface ResumenCasas {
+  casas: number;
+  casasArmadas: number;
+  dispositivos: number;
+  dispositivosOffline: number;
+}
+
+/** Todos los sistemas que se brindan: barrios e individuales. */
+export interface Sistemas {
+  barrios: (Barrio & ResumenCasas & { guardias: { id: number; nombre: string }[] })[];
+  individuales: ResumenCasas;
 }
 
 export interface DispositivoAdmin {
@@ -166,6 +206,7 @@ export interface DispositivoAdmin {
   puertaAbierta: boolean | null;
   wifiSsid: string | null;
   wifiRssi: number | null;
+  bateria: number | null;
   firmwareVersion: string | null;
   ultimaConexion: string | null;
   vinculadoEn: string | null;
@@ -179,7 +220,10 @@ export interface CasaAdmin {
   calle: string | null;
   numero: string | null;
   manzana: string | null;
+  paquete: Paquete;
+  barrioId: number | null;
   barrio: string | null;
+  tieneGuardia: boolean;
   alarmaArmada: boolean;
   retardoEntradaSeg: number;
   activa: boolean;
@@ -191,7 +235,7 @@ export interface EstadoSistema {
   db: boolean;
   mqtt: { activo: boolean; clientes: number };
   sms: boolean;
-  conteos: { usuarios: number; casas: number; placas: number; placasOnline: number; pushTokens: number };
+  conteos: { usuarios: number; casas: number; individuales: number; barrios: number; placas: number; placasOnline: number; pushTokens: number };
   version: string;
   uptimeSeg: number;
 }

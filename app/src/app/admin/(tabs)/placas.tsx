@@ -22,10 +22,10 @@ export default function PlacasAdmin() {
     try {
       if (tipo === "reset") {
         const r = await placas.reset(elegida.id);
-        setAviso(r.status === 202 ? r.datos.mensaje ?? "La placa no respondió" : "Placa restablecida y desvinculada");
+        setAviso(r.status === 202 ? r.datos.mensaje ?? "El dispositivo no respondió" : "Dispositivo restablecido y desvinculado");
       } else {
         await placas.desvincular(elegida.id);
-        setAviso("Placa desvinculada");
+        setAviso("Dispositivo desvinculado");
       }
       setElegida(null);
       qc.invalidateQueries({ queryKey: ["admin"] });
@@ -39,7 +39,7 @@ export default function PlacasAdmin() {
   return (
     <>
       <Appbar.Header>
-        <Appbar.Content title="Placas" />
+        <Appbar.Content title="Dispositivos" />
       </Appbar.Header>
       <SegmentedButtons
         style={{ marginHorizontal: 16, marginBottom: 8 }}
@@ -61,11 +61,11 @@ export default function PlacasAdmin() {
           keyExtractor={(d) => String(d.id)}
           contentContainerStyle={{ flexGrow: 1 }}
           refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={() => void q.refetch()} />}
-          ListEmptyComponent={<Vacio icono="chip" titulo="No hay placas" detalle="Las placas aparecen cuando un cliente las vincula desde la app." />}
+          ListEmptyComponent={<Vacio icono="chip" titulo="No hay dispositivos" detalle="Aparecen cuando un cliente los vincula desde la app." />}
           renderItem={({ item: d }) => (
             <List.Item
-              title={`${d.deviceId}${d.casa ? ` · ${direccion(d.casa)}` : ""}`}
-              description={`${d.casaId ? (d.online ? "Online" : "Offline") : "Sin casa"} · ${d.wifiSsid ?? "—"} · v${d.firmwareVersion ?? "?"} · ${haceCuanto(d.ultimaConexion)}`}
+              title={`${d.nombre ?? d.deviceId}${d.casa ? ` · ${direccion(d.casa)}` : ""}`}
+              description={`${d.deviceId} · ${d.casaId ? (d.online ? "Online" : "Offline") : "Sin casa"} · ${d.wifiSsid ?? "—"} · v${d.firmwareVersion ?? "?"} · ${haceCuanto(d.ultimaConexion)}`}
               left={(p) => <List.Icon {...p} icon={d.online ? "chip" : "chip"} color={d.online ? "#2E7D32" : d.casaId ? "#C62828" : undefined} />}
               onPress={d.casaId ? () => setElegida(d) : undefined}
             />
@@ -74,9 +74,9 @@ export default function PlacasAdmin() {
       )}
       <Portal>
         <Dialog visible={!!elegida} onDismiss={() => setElegida(null)}>
-          <Dialog.Title>Placa {elegida?.deviceId}</Dialog.Title>
+          <Dialog.Title>{elegida?.nombre ?? "Dispositivo"} · {elegida?.deviceId}</Dialog.Title>
           <Dialog.Content>
-            <Text>“Restablecer” borra el WiFi de la placa y la desvincula (necesita estar conectada). “Desvincular” solo la quita de la casa.</Text>
+            <Text>“Restablecer” borra el WiFi del dispositivo y lo desvincula (necesita estar conectado). “Desvincular” solo lo quita de la casa.</Text>
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setElegida(null)}>Cancelar</Button>

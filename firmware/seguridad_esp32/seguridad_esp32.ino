@@ -6,6 +6,7 @@
 // - Vinculación segura a la casa con código de un solo uso.
 // - MQTT con usuario propio, QoS 1 y última voluntad (offline inmediato).
 // - Los eventos se guardan en flash y se reenvían si no había conexión.
+// - Informa el % de la batería 18650 si está conectada al divisor (GPIO34).
 // - Nunca se bloquea: el sensor se lee siempre, haya o no conexión.
 //
 // Protocolo: docs/protocolo.md     Guía: firmware/README.md
@@ -22,6 +23,7 @@
 #include "mqtt_mgr.h"
 #include "ble_prov.h"
 #include "token.h"
+#include "bateria.h"
 
 static const unsigned long INDEFINIDO = 0xFFFFFFFFUL;
 
@@ -39,6 +41,7 @@ struct Trabajo {
   String ssid, pass, codigo;
   String ssidAnterior, passAnterior;
   unsigned long desde = 0;
+  int intentos = 0;  // canjes del código que no tuvieron respuesta
 } trabajo;
 
 bool escaneoPendiente = false;
@@ -108,7 +111,8 @@ void iniciarMqtt() {
 }
 
 void publicarEstado() {
-  if (mqttmgr::conectado()) mqttmgr::publicarEstado(sensor::puertaAbierta(), red::ssidActual(), red::rssi(), red::ip());
+  if (mqttmgr::conectado())
+    mqttmgr::publicarEstado(sensor::puertaAbierta(), red::ssidActual(), red::rssi(), red::ip(), bateria::medir());
 }
 
 void programarReinicio(unsigned long ms, bool borrar) {
@@ -166,6 +170,7 @@ void comandoBle(const String& linea) {
     trabajo.ssid = ssid;
     trabajo.pass = pass;
     trabajo.codigo = codigo;
+    trabajo.intentos = 0;
     trabajo.ssidAnterior = almacen::ssid();
     trabajo.passAnterior = almacen::pass();
     trabajo.desde = millis();
@@ -221,9 +226,17 @@ void avanzarTrabajo() {
     }
 
     case Fase::VINCULAR: {
-      progreso("vinculando");
+      // Entre reintentos se espera sin bloquear el loop
+      if (millis() < trabajo.desde) return;
+      if (trabajo.intentos == 0) progreso("vinculando");
       red::RespuestaProvision p = red::provisionar(almacen::apiUrl(), deviceId, trabajo.codigo, almacen::secretoHex());
+      if (p.http <= 0 && ++trabajo.intentos < PROVISION_INTENTOS) {
+        Serial.printf("[setup] reintento de vinculacion %d\n", trabajo.intentos + 1);
+        trabajo.desde = millis() + PROVISION_ESPERA_MS;
+        return;
+      }
       trabajo.codigo = "";
+      trabajo.intentos = 0;
       if (p.http == 200 && p.mqttUrl.length() && p.mqttUser.length() && p.mqttPass.length()) {
         almacen::guardarMqtt(p.mqttUrl, p.mqttUser, p.mqttPass);
         almacen::reiniciarSeq();
@@ -367,6 +380,7 @@ void setup() {
   pinMode(BOTON_PIN, INPUT_PULLUP);
   led::iniciar();
   sensor::iniciar();
+  bateria::iniciar();
   almacen::iniciar();
   red::iniciar();
   deviceId = leerDeviceId();
@@ -416,7 +430,9 @@ void loop() {
   enviarCola();
   if (mqttmgr::conectado() && millis() - ultimaTelemetria > TELEMETRIA_MS) {
     ultimaTelemetria = millis();
-    mqttmgr::publicarTelemetria(red::rssi());
+    bateria::Lectura bat = bateria::medir();
+    if (bat.pct >= 0) Serial.printf("[bateria] %d mV (%d %%)\n", bat.mv, bat.pct);
+    mqttmgr::publicarTelemetria(red::rssi(), bat);
   }
   // El servidor rechaza nuestras credenciales: la placa fue desvinculada
   if (almacen::vinculada() && mqttmgr::rechazos() >= MQTT_RECHAZOS_DESVINCULAR) {

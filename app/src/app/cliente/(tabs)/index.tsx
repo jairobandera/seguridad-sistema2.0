@@ -11,7 +11,9 @@ import { BotonAlarma } from "@/components/BotonAlarma";
 import { Indicador } from "@/components/Indicador";
 import { EventoItem } from "@/components/EventoItem";
 import { Cargando, ErrorReintentar, Vacio } from "@/components/Estados";
-import { barrasSenal, direccion } from "@/utils/formato";
+import { DispositivoFila, nombreDispositivo, resumenConexion, resumenPuertas } from "@/components/DispositivoFila";
+import { useArmadoParcial } from "@/components/ArmadoParcial";
+import { direccion } from "@/utils/formato";
 import { colores } from "@/tema";
 
 export default function InicioCliente() {
@@ -27,17 +29,20 @@ export default function InicioCliente() {
   });
 
   const alarma = useMutation({
-    mutationFn: (armar: boolean) => casas.alarma(actual!.id, armar),
+    mutationFn: (p: { armar: boolean; excluir?: number[] }) => casas.alarma(actual!.id, p.armar, p.excluir),
     onSuccess: (r) => {
       qc.setQueryData<Casa[]>(["casas", "mias"], (l) =>
         l?.map((c) => (c.id === r.estado.casaId ? { ...c, alarmaArmada: r.estado.alarmaArmada, estado: r.estado } : c)),
       );
       qc.invalidateQueries({ queryKey: ["eventos", actual?.id] });
-      if (r.advertencia === "puerta_abierta") setAviso("Ojo: la alarma quedó armada pero la puerta está abierta.");
-      else setAviso(r.estado.alarmaArmada ? "Alarma armada" : "Alarma desarmada");
+      if (r.advertencia === "puerta_abierta") setAviso("Ojo: la alarma quedó armada pero hay algo abierto.");
+      else setAviso(!r.estado.alarmaArmada ? "Alarma desarmada" : r.estado.armadoParcial ? "Alarma armada (parcial)" : "Alarma armada");
     },
     onError: (e) => setAviso(mensajeDeError(e)),
   });
+
+  const dispositivos = actual?.estado?.dispositivos ?? [];
+  const parcial = useArmadoParcial(actual?.id ?? 0, dispositivos, (excluir) => alarma.mutate({ armar: true, excluir }));
 
   if (isLoading) return <Cargando />;
   if (error) return <ErrorReintentar error={error} alReintentar={refetch} />;
@@ -52,9 +57,11 @@ export default function InicioCliente() {
     );
   }
 
-  const e = actual.estado;
-  const tienePlaca = !!e?.dispositivo;
-  const online = !!e?.online;
+  const esDueno = actual.rolCasa === "DUENO";
+  const afuera = dispositivos.filter((d) => d.excluido);
+  const puertas = resumenPuertas(dispositivos);
+  const conexion = resumenConexion(dispositivos);
+  const agregar = () => router.push({ pathname: "/cliente/asistente", params: { casaId: actual.id, modo: "nueva" } });
 
   return (
     <>
@@ -77,39 +84,61 @@ export default function InicioCliente() {
 
         <Card style={estilos.tarjeta}>
           <Card.Content style={{ alignItems: "center", paddingVertical: 24 }}>
-            <BotonAlarma armada={actual.alarmaArmada} cargando={alarma.isPending} alCambiar={(armar) => alarma.mutate(armar)} />
+            <BotonAlarma
+              armada={actual.alarmaArmada}
+              cargando={alarma.isPending}
+              alCambiar={(armar) => (armar ? parcial.armarTodo() : alarma.mutate({ armar: false }))}
+            />
+            {afuera.length ? (
+              <Text variant="bodyMedium" style={{ marginTop: 8, color: colores.aviso, textAlign: "center" }}>
+                Armada parcial · afuera: {afuera.map(nombreDispositivo).join(", ")}
+              </Text>
+            ) : null}
+            {!actual.alarmaArmada && dispositivos.length > 1 ? (
+              <Button icon="checkbox-multiple-marked-outline" style={{ marginTop: 8 }} onPress={parcial.pedirParcial} disabled={alarma.isPending}>
+                Armar parcial
+              </Button>
+            ) : null}
           </Card.Content>
         </Card>
 
-        {tienePlaca ? (
-          <View style={estilos.indicadores}>
-            <Indicador
-              icono={e!.puertaAbierta ? "door-open" : "door-closed"}
-              titulo="Puerta"
-              valor={e!.puertaAbierta ? "Abierta" : "Cerrada"}
-              color={e!.puertaAbierta ? colores.aviso : colores.ok}
-            />
-            <Indicador
-              icono={online ? `wifi-strength-${barrasSenal(e!.rssi)}` : "wifi-off"}
-              titulo="Placa"
-              valor={online ? "Conectada" : "Sin conexión"}
-              color={online ? colores.ok : colores.peligro}
-            />
-          </View>
+        {dispositivos.length > 0 ? (
+          <>
+            <View style={estilos.indicadores}>
+              <Indicador
+                icono={puertas.abierta ? "door-open" : "door-closed"}
+                titulo={dispositivos.length > 1 ? "Aberturas" : "Puerta"}
+                valor={puertas.texto}
+                color={puertas.abierta ? colores.aviso : colores.ok}
+              />
+              <Indicador
+                icono={conexion.ok ? "wifi" : "wifi-off"}
+                titulo={dispositivos.length > 1 ? "Dispositivos" : "Dispositivo"}
+                valor={conexion.texto}
+                color={conexion.ok ? colores.ok : colores.peligro}
+              />
+            </View>
+            <Card style={estilos.tarjeta}>
+              {dispositivos.map((d, i) => (
+                <View key={d.id}>
+                  {i > 0 ? <Divider /> : null}
+                  <DispositivoFila d={d} alTocar={() => router.navigate("/cliente/dispositivos")} />
+                </View>
+              ))}
+            </Card>
+          </>
         ) : (
           <Card style={estilos.tarjeta}>
             <Card.Content>
-              <Text variant="titleMedium">Tu casa todavía no tiene una placa</Text>
+              <Text variant="titleMedium">Tu casa todavía no tiene dispositivos</Text>
               <Text variant="bodyMedium" style={{ marginTop: 4, color: tema.colors.onSurfaceVariant }}>
-                {actual.rolCasa === "DUENO"
-                  ? "Configurala en un par de minutos desde el celular."
-                  : "Pedile al dueño de la casa que la configure."}
+                {esDueno ? "Configuralo en un par de minutos desde el celular." : "Pedile al dueño de la casa que lo configure."}
               </Text>
             </Card.Content>
-            {actual.rolCasa === "DUENO" ? (
+            {esDueno ? (
               <Card.Actions>
-                <Button mode="contained" icon="plus" onPress={() => router.push({ pathname: "/cliente/asistente", params: { casaId: actual.id, modo: "nueva" } })}>
-                  Agregar placa
+                <Button mode="contained" icon="plus" onPress={agregar}>
+                  Agregar dispositivo
                 </Button>
               </Card.Actions>
             ) : null}
@@ -132,6 +161,7 @@ export default function InicioCliente() {
           </Card.Actions>
         </Card>
       </ScrollView>
+      {parcial.dialogos}
       <Snackbar visible={!!aviso} onDismiss={() => setAviso(null)} duration={3500}>
         {aviso}
       </Snackbar>

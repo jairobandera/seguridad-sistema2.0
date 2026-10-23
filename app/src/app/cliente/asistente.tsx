@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Linking, Platform, ScrollView, StyleSheet, View } from "react-native";
-import { ActivityIndicator, Appbar, Button, Card, HelperText, Icon, List, Text, TextInput, useTheme } from "react-native-paper";
+import { ActivityIndicator, Appbar, Button, Card, Chip, HelperText, Icon, List, Text, useTheme } from "react-native-paper";
+import { Campo } from "@/components/Campo";
 import { router, useLocalSearchParams } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { casas, placas } from "@/api/endpoints";
@@ -19,12 +20,15 @@ import { colores } from "@/tema";
 
 type Paso = "intro" | "buscar" | "conectando" | "redes" | "clave" | "configurando" | "listo" | "error";
 
+// Nombres rápidos para el dispositivo nuevo (también se puede escribir otro)
+const NOMBRES_SUGERIDOS = ["Puerta principal", "Puerta trasera", "Ventana", "Garage", "Portón"];
+
 const FASES: { fase: string; texto: string; soloNueva?: boolean }[] = [
   { fase: "wifi_conectando", texto: "Conectando al WiFi" },
   { fase: "wifi_ok", texto: "WiFi conectado" },
   { fase: "vinculando", texto: "Vinculando con tu casa", soloNueva: true },
-  { fase: "vinculada", texto: "Placa vinculada", soloNueva: true },
-  { fase: "mqtt_ok", texto: "Conectada al servidor" },
+  { fase: "vinculada", texto: "Dispositivo vinculado", soloNueva: true },
+  { fase: "mqtt_ok", texto: "Conectado al servidor" },
 ];
 
 export default function Asistente() {
@@ -40,6 +44,7 @@ export default function Asistente() {
   const [buscando, setBuscando] = useState(false);
   const [redes, setRedes] = useState<RedWifi[]>([]);
   const [cargandoRedes, setCargandoRedes] = useState(false);
+  const [nombre, setNombre] = useState("");
   const [ssid, setSsid] = useState("");
   const [clave, setClave] = useState("");
   const [verClave, setVerClave] = useState(false);
@@ -67,7 +72,7 @@ export default function Asistente() {
     if (!bluetoothDisponible()) {
       return fallar("Esta versión de la app no tiene Bluetooth (Expo Go no lo soporta). Instalá la app de prueba que generamos con EAS.");
     }
-    if (!(await pedirPermisos())) return fallar("Necesitamos el permiso de Bluetooth para encontrar la placa. Activalo en los ajustes del celular.");
+    if (!(await pedirPermisos())) return fallar("Necesitamos el permiso de Bluetooth para encontrar el dispositivo. Activalo en los ajustes del celular.");
     if (!(await bluetoothEncendido())) return fallar("Prendé el Bluetooth del celular y volvé a intentar.");
     setEncontradas([]);
     setPaso("buscar");
@@ -99,18 +104,18 @@ export default function Asistente() {
       const info = await c.info();
       if (modoWifi && p.deviceId && info.id !== p.deviceId) {
         await c.desconectar();
-        return fallar("Esa no es la placa de tu casa. Elegí la que corresponde.");
+        return fallar("Ese no es el dispositivo que querés configurar. Elegí el que corresponde.");
       }
       if (!modoWifi && info.vinculada) {
         await c.desconectar();
         return fallar(
-          "Esta placa ya está configurada. Si es la de tu casa, usá “Cambiar WiFi” desde la pestaña Placa. Si no, dejala de fábrica manteniendo su botón BOOT 15 segundos.",
+          "Este dispositivo ya está configurado. Si es de tu casa, usá “Cambiar WiFi” desde la pestaña Dispositivos. Si no, dejalo de fábrica manteniendo su botón BOOT 15 segundos.",
         );
       }
       setPaso("redes");
       cargarRedes();
     } catch (e) {
-      fallar(`No se pudo conectar con la placa. Acercate y volvé a intentar. (${mensajeDeError(e)})`);
+      fallar(`No se pudo conectar con el dispositivo. Acercate y volvé a intentar. (${mensajeDeError(e)})`);
     }
   };
 
@@ -133,7 +138,7 @@ export default function Asistente() {
     try {
       const credencial = modoWifi
         ? { token: (await placas.tokenConfig(Number(p.dispositivoId))).token }
-        : { codigo: (await casas.codigoVinculacion(casaId)).codigo };
+        : { codigo: (await casas.codigoVinculacion(casaId, nombre.trim())).codigo };
       await conexion.current.configurar({ ssid, pass: clave, api: API_URL, ...credencial }, (fase) => setFases((f) => [...f, fase]));
       setPaso("listo");
       qc.invalidateQueries({ queryKey: ["casas"] });
@@ -145,7 +150,7 @@ export default function Asistente() {
     }
   };
 
-  const titulo = modoWifi ? "Cambiar WiFi de la placa" : "Agregar placa";
+  const titulo = modoWifi ? "Cambiar WiFi del dispositivo" : "Agregar dispositivo";
 
   return (
     <>
@@ -157,22 +162,35 @@ export default function Asistente() {
         {paso === "intro" ? (
           <Card>
             <Card.Content style={{ gap: 12 }}>
+              {!modoWifi ? (
+                <>
+                  <Text variant="titleMedium">¿Dónde lo vas a poner?</Text>
+                  <View style={estilos.chips}>
+                    {NOMBRES_SUGERIDOS.map((n) => (
+                      <Chip key={n} selected={nombre === n} onPress={() => setNombre(n)}>
+                        {n}
+                      </Chip>
+                    ))}
+                  </View>
+                  <Campo label="Nombre del dispositivo" mode="outlined" value={nombre} onChangeText={setNombre} maxLength={40} />
+                </>
+              ) : null}
               <Text variant="titleMedium">Antes de empezar</Text>
               {modoWifi ? (
                 p.bleAbierto === "1" ? (
-                  <Paso1 icono="check-circle" texto="La placa ya abrió su Bluetooth (su luz parpadea rápido)." />
+                  <Paso1 icono="check-circle" texto="El dispositivo ya abrió su Bluetooth (su luz parpadea rápido)." />
                 ) : (
-                  <Paso1 icono="gesture-tap-hold" texto="Mantené apretado el botón BOOT de la placa 5 segundos, hasta que la luz parpadee rápido." />
+                  <Paso1 icono="gesture-tap-hold" texto="Mantené apretado el botón BOOT del dispositivo 5 segundos, hasta que la luz parpadee rápido." />
                 )
               ) : (
-                <Paso1 icono="power-plug" texto="Enchufá la placa. Su luz azul tiene que parpadear rápido." />
+                <Paso1 icono="power-plug" texto="Enchufá el dispositivo. Su luz azul tiene que parpadear rápido." />
               )}
-              <Paso1 icono="bluetooth" texto="Prendé el Bluetooth del celular y quedate cerca de la placa." />
-              <Paso1 icono="wifi" texto="Tené a mano la clave de tu WiFi. La placa solo funciona con redes de 2,4 GHz." />
+              <Paso1 icono="bluetooth" texto="Prendé el Bluetooth del celular y quedate cerca del dispositivo." />
+              <Paso1 icono="wifi" texto="Tené a mano la clave de tu WiFi. El dispositivo solo funciona con redes de 2,4 GHz." />
             </Card.Content>
             <Card.Actions>
-              <Button mode="contained" onPress={buscar}>
-                Buscar placa
+              <Button mode="contained" onPress={buscar} disabled={!modoWifi && !nombre.trim()}>
+                Buscar dispositivo
               </Button>
             </Card.Actions>
           </Card>
@@ -180,13 +198,13 @@ export default function Asistente() {
 
         {paso === "buscar" ? (
           <Card>
-            <Card.Title title="Elegí tu placa" subtitle={buscando ? "Buscando placas cercanas..." : "Búsqueda terminada"} right={() => (buscando ? <ActivityIndicator style={{ marginRight: 16 }} /> : null)} />
+            <Card.Title title="Elegí tu dispositivo" subtitle={buscando ? "Buscando dispositivos cercanos..." : "Búsqueda terminada"} right={() => (buscando ? <ActivityIndicator style={{ marginRight: 16 }} /> : null)} />
             {encontradas.map((pl) => (
               <List.Item key={pl.id} title={pl.nombre} description="Tocá para conectar" left={(pp) => <List.Icon {...pp} icon="chip" />} onPress={() => elegirPlaca(pl)} />
             ))}
             {!buscando && encontradas.length === 0 ? (
               <Card.Content>
-                <Text>No encontramos ninguna placa. Verificá que su luz parpadee rápido y que estés cerca.</Text>
+                <Text>No encontramos ningún dispositivo. Verificá que su luz parpadee rápido y que estés cerca.</Text>
               </Card.Content>
             ) : null}
             <Card.Actions>
@@ -197,7 +215,7 @@ export default function Asistente() {
           </Card>
         ) : null}
 
-        {paso === "conectando" ? <Esperando texto="Conectando con la placa..." /> : null}
+        {paso === "conectando" ? <Esperando texto="Conectando con el dispositivo..." /> : null}
 
         {paso === "redes" ? (
           <Card>
@@ -238,15 +256,15 @@ export default function Asistente() {
         {paso === "clave" ? (
           <Card>
             <Card.Content style={{ gap: 12 }}>
-              <TextInput label="Nombre de la red (SSID)" mode="outlined" value={ssid} onChangeText={setSsid} autoCapitalize="none" />
-              <TextInput
+              <Campo label="Nombre de la red (SSID)" mode="outlined" value={ssid} onChangeText={setSsid} autoCapitalize="none" />
+              <Campo
                 label="Contraseña del WiFi"
                 mode="outlined"
                 value={clave}
                 onChangeText={setClave}
                 secureTextEntry={!verClave}
                 autoCapitalize="none"
-                right={<TextInput.Icon icon={verClave ? "eye-off" : "eye"} onPress={() => setVerClave((v) => !v)} />}
+                right={<Campo.Icon icon={verClave ? "eye-off" : "eye"} onPress={() => setVerClave((v) => !v)} />}
               />
               <HelperText type="error" visible={!!error}>
                 {error}
@@ -263,7 +281,7 @@ export default function Asistente() {
 
         {paso === "configurando" ? (
           <Card>
-            <Card.Title title="Configurando la placa" subtitle="Puede tardar hasta un minuto" />
+            <Card.Title title="Configurando el dispositivo" subtitle="Puede tardar hasta un minuto" />
             <Card.Content>
               {FASES.filter((f) => !(f.soloNueva && modoWifi)).map((f) => {
                 const hecha = fases.includes(f.fase);
@@ -282,7 +300,7 @@ export default function Asistente() {
           <View style={estilos.centro}>
             <Icon source="check-decagram" size={96} color={colores.ok} />
             <Text variant="headlineSmall" style={{ marginTop: 16, textAlign: "center" }}>
-              {modoWifi ? "¡WiFi actualizado!" : "¡Listo! Tu placa quedó vinculada"}
+              {modoWifi ? "¡WiFi actualizado!" : `¡Listo! ${nombre.trim()} quedó vinculado`}
             </Text>
             <Text style={{ marginTop: 8, textAlign: "center", color: tema.colors.onSurfaceVariant }}>
               Ya podés armar la alarma desde el inicio.
@@ -297,7 +315,7 @@ export default function Asistente() {
           <View style={estilos.centro}>
             <Icon source="alert-circle" size={72} color={colores.peligro} />
             <Text variant="titleMedium" style={{ marginTop: 16, textAlign: "center" }}>
-              {error ?? "Se perdió la conexión con la placa."}
+              {error ?? "Se perdió la conexión con el dispositivo."}
             </Text>
             <Button mode="contained" style={{ marginTop: 24 }} onPress={buscar}>
               Volver a intentar
@@ -338,4 +356,5 @@ const estilos = StyleSheet.create({
   contenido: { padding: 16, paddingBottom: 40 },
   centro: { alignItems: "center", padding: 24, marginTop: 24 },
   fase: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
 });

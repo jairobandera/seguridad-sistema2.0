@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ScrollView } from "react-native";
-import { Appbar, Button, Card, Dialog, HelperText, IconButton, List, Portal, Text, TextInput, useTheme } from "react-native-paper";
+import { Appbar, Button, Card, Dialog, HelperText, IconButton, List, Portal, Text, useTheme } from "react-native-paper";
+import { Campo } from "@/components/Campo";
 import { router } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { casas } from "@/api/endpoints";
@@ -81,7 +82,7 @@ export default function Familia() {
           <Dialog.Title>Agregar familiar</Dialog.Title>
           <Dialog.Content>
             <Text style={{ marginBottom: 12 }}>La persona tiene que tener una cuenta. Si no la tiene, pedile a la administración que la cree.</Text>
-            <TextInput label="Email de la persona" mode="outlined" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
+            <Campo label="Email de la persona" mode="outlined" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
             <HelperText type="error" visible={!!error}>
               {error}
             </HelperText>

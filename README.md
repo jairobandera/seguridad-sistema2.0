@@ -118,11 +118,13 @@ npx pnpm@10 seed -- --demo
 
 El seed crea tu administrador (el del `.env`) y estos usuarios de prueba:
 
-| Rol | Email | Contraseña |
-|---|---|---|
-| Cliente (dueña de la casa C-DEMO) | ana@demo.com | Demo12345 |
-| Cliente (familiar) | juan@demo.com | Demo12345 |
-| Guardia | guardia@demo.com | Demo12345 |
+| Rol | Email | Contraseña | Sistema |
+|---|---|---|---|
+| Cliente (dueña de la casa C-DEMO) | ana@demo.com | Demo12345 | Barrio Demo (con guardia) |
+| Cliente (familiar en C-DEMO) | juan@demo.com | Demo12345 | Barrio Demo (con guardia) |
+| Guardia | guardia@demo.com | Demo12345 | Cubre Barrio Demo |
+| Cliente (dueña de C-SINGUARDIA) | lucia@demo.com | Demo12345 | Barrio Sin Guardia |
+| Cliente (dueño de C-INDIVIDUAL) | pedro@demo.com | Demo12345 | Casa individual |
 
 ### 3.4 Arrancar
 ```bash
@@ -349,9 +351,17 @@ Firmware: compilar en Arduino IDE (✓) o con `arduino-cli compile --fqbn esp32:
 | `Sketch too big` al compilar | Partición por defecto | **Partition Scheme → Minimal SPIFFS** |
 | `Slug ... does not match` en `eas build` | El slug no coincide con el proyecto de Expo | Igualá `slug` en `app/app.config.ts` con el proyecto (ver `npx eas-cli@latest project:info`) |
 | `adb executable doesn't seem to work` al final del build | EAS quiso abrir un emulador | Ignoralo: el build salió bien. Instalá el APK desde el link |
+| Monitor Serie: `[mqtt] credenciales rechazadas: placa desvinculada` y la app dice "Sin conexión" | Con el firmware anterior a este arreglo, si la placa se conectaba mientras MySQL estaba apagado, se desvinculaba sola | Subí el firmware actual y volvé a agregarla: **Placa → Agregar placa** (a la misma casa se permite). Prendé siempre XAMPP **antes** que el backend |
 | MySQL no arranca en XAMPP | Puerto 3306 ocupado u otro MySQL | Cerrá otros MySQL o revisá el log de XAMPP |
 
 ---
+
+## Paquetes
+- **Barrio**: varias casas dentro de un barrio. Cada barrio puede tener la **guardia activada o no** (desde Sistemas, en el usuario admin).
+  Con guardia: los guardias que cubren ese barrio ven sus casas y reciben las alarmas. Un guardia puede cubrir varios barrios.
+- **Individual**: una casa suelta, sin guardia. Tiene todo lo demás: alarma, push con sirena a la familia, SMS, contactos y varios dispositivos.
+
+Sin guardia (casa individual o barrio con la guardia apagada) la alarma avisa al dueño y la familia por push y a los contactos por SMS.
 
 ## Funciones
 - **Cliente (dueño/familiar)**: armar y desarmar manteniendo apretado, estado de la puerta y la placa en vivo,
@@ -359,7 +369,10 @@ Firmware: compilar en Arduino IDE (✓) o con `arduino-cli compile --fqbn esp32:
   contactos de emergencia (SMS) y familiares.
 - **Guardia**: alertas en vivo con sirena; tomar / resolver / falsa alarma, sincronizado entre guardias; casas con
   filtros; llamar al dueño o a los contactos.
-- **Admin**: usuarios con clave temporal, casas con dueño y familiares y retardo de entrada, placas, estado del sistema.
+- **Admin**: **Sistemas** (todos los barrios con su interruptor de guardia y las casas individuales), casas con paquete,
+  barrio, dueño, familiares y retardo de entrada, usuarios con clave temporal (a los guardias se les eligen sus barrios),
+  dispositivos y estado del sistema.
+- **Varios dispositivos por casa** (puerta principal, trasera, ventanas...): cada uno con su nombre, que el dueño elige al agregarlo.
 
 ## Seguridad
 - Sesiones de 15 min con renovación rotativa. Se revocan al cerrar sesión, al cambiar la clave o al desactivar al usuario.

@@ -1,4 +1,5 @@
 import type { Evento, Severidad } from "@/api/tipos";
+import { colores } from "@/tema";
 
 export const nombreCompleto = (u: { nombre: string; apellido?: string | null }) => `${u.nombre} ${u.apellido ?? ""}`.trim();
 
@@ -46,23 +47,34 @@ interface TextoEvento {
   icono: string;
 }
 
-/** Texto amigable para cada tipo de evento. */
-export function textoEvento(e: Pick<Evento, "tipo" | "usuario" | "severidad">): TextoEvento {
+/** Texto amigable para cada tipo de evento (con el nombre del dispositivo: "Puerta trasera"). */
+export function textoEvento(e: Pick<Evento, "tipo" | "usuario" | "severidad" | "dispositivo" | "valor">): TextoEvento {
+  const nombre = e.dispositivo?.nombre?.trim();
   switch (e.tipo) {
-    case "PUERTA_ABIERTA":
-      return { titulo: e.severidad === "INFO" ? "Se abrió la puerta" : "¡Se abrió la puerta con la alarma armada!", icono: "door-open" };
+    case "PUERTA_ABIERTA": {
+      const que = nombre ? `Se abrió ${nombre}` : "Se abrió la puerta";
+      return { titulo: e.severidad === "INFO" ? que : `¡${que} con la alarma armada!`, icono: "door-open" };
+    }
     case "PUERTA_CERRADA":
-      return { titulo: "Se cerró la puerta", icono: "door-closed" };
+      return { titulo: nombre ? `Se cerró ${nombre}` : "Se cerró la puerta", icono: "door-closed" };
     case "ALARMA_ARMADA":
-      return { titulo: e.usuario ? `${e.usuario.nombre} armó la alarma` : "Alarma armada", icono: "shield-check" };
+      return {
+        titulo: `${e.usuario ? `${e.usuario.nombre} armó la alarma` : "Alarma armada"}${e.valor ? ` (parcial · ${e.valor.replace(/^Sin: /, "sin ")})` : ""}`,
+        icono: "shield-check",
+      };
     case "ALARMA_DESARMADA":
       return { titulo: e.usuario ? `${e.usuario.nombre} desarmó la alarma` : "Alarma desarmada", icono: "shield-off-outline" };
     case "DISPOSITIVO_OFFLINE":
-      return { titulo: "La placa se desconectó", icono: "wifi-off" };
+      return { titulo: `${nombre ?? "El dispositivo"} se desconectó`, icono: "wifi-off" };
     case "DISPOSITIVO_ONLINE":
-      return { titulo: "La placa se conectó", icono: "wifi" };
+      return { titulo: `${nombre ?? "El dispositivo"} se conectó`, icono: "wifi" };
     case "DISPOSITIVO_VINCULADO":
-      return { titulo: "Placa vinculada a la casa", icono: "link-variant" };
+      return { titulo: `${nombre ?? "Dispositivo"} vinculado a la casa`, icono: "link-variant" };
+    case "BATERIA_BAJA":
+      return {
+        titulo: `${nombre ?? "El dispositivo"} con batería ${e.severidad === "ALERTA" ? "muy " : ""}baja${e.valor ? ` (${e.valor} %)` : ""}`,
+        icono: e.severidad === "ALERTA" ? "battery-alert" : "battery-20",
+      };
     default:
       return { titulo: e.tipo, icono: "information-outline" };
   }
@@ -88,4 +100,18 @@ export function barrasSenal(rssi: number | null | undefined): number {
   if (rssi >= -65) return 3;
   if (rssi >= -75) return 2;
   return 1;
+}
+
+/** Ícono de batería (Material Design Icons) según el porcentaje. */
+export function iconoBateria(pct: number): string {
+  if (pct <= 10) return "battery-alert";
+  const decena = Math.round(pct / 10) * 10;
+  return decena >= 100 ? "battery" : `battery-${decena}`;
+}
+
+/** Verde, naranja con 20 % o menos, rojo con 10 % o menos. */
+export function colorBateria(pct: number): string {
+  if (pct <= 10) return colores.peligro;
+  if (pct <= 20) return colores.aviso;
+  return colores.ok;
 }

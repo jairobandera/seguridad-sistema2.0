@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ScrollView, View } from "react-native";
-import { Appbar, Button, Card, Dialog, HelperText, IconButton, List, Portal, SegmentedButtons, Snackbar, Text, TextInput, useTheme } from "react-native-paper";
+import { Appbar, Button, Card, Dialog, HelperText, IconButton, List, Portal, SegmentedButtons, Snackbar, Text, useTheme } from "react-native-paper";
+import { Campo } from "@/components/Campo";
 import { router } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { contactos } from "@/api/endpoints";
@@ -131,16 +132,16 @@ function FormContacto({ contacto, alCerrar, alGuardar }: { contacto: Contacto | 
         <Dialog.Title>{contacto ? "Editar contacto" : "Nuevo contacto"}</Dialog.Title>
         <Dialog.ScrollArea style={{ paddingHorizontal: 24 }}>
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 12, paddingVertical: 12 }}>
-            <TextInput label="Nombre" mode="outlined" value={nombre} onChangeText={setNombre} />
-            <TextInput label="Relación (opcional)" mode="outlined" value={relacion} onChangeText={setRelacion} placeholder="Ej: hermano, vecina" />
+            <Campo label="Nombre" mode="outlined" value={nombre} onChangeText={setNombre} />
+            <Campo label="Relación (opcional)" mode="outlined" value={relacion} onChangeText={setRelacion} placeholder="Ej: hermano, vecina" />
             <SegmentedButtons value={pais} onValueChange={(v) => setPais(v as CodigoPais)} buttons={PAISES.map((p) => ({ value: p.codigo, label: p.nombre }))} />
-            <TextInput
+            <Campo
               label={pais === "OTRO" ? "Número con código de país (+...)" : "Celular (con código de área)"}
               mode="outlined"
               keyboardType="phone-pad"
               value={numero}
               onChangeText={setNumero}
-              left={pais === "OTRO" ? undefined : <TextInput.Affix text={PAISES.find((p) => p.codigo === pais)!.prefijo} />}
+              left={pais === "OTRO" ? undefined : <Campo.Affix text={PAISES.find((p) => p.codigo === pais)!.prefijo} />}
               placeholder={pais === "AR" ? "11 2345 6789" : pais === "UY" ? "99 123 456" : "+1 555 123 4567"}
             />
             <HelperText type={tel.e164 ? "info" : "error"} visible={numero.length > 3}>

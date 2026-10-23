@@ -5,7 +5,7 @@ import type { Sesion, Usuario } from "@/api/tipos";
 
 // Los tokens se guardan cifrados en el llavero del sistema (Keychain / Keystore).
 // En la versión web (panel desde la PC) no hay llavero: se usa localStorage.
-const almacen =
+export const almacen =
   Platform.OS === "web"
     ? {
         getItemAsync: async (k: string) => globalThis.localStorage?.getItem(k) ?? null,

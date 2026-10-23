@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import { ScrollView, View } from "react-native";
-import { Appbar, Button, Card, Dialog, HelperText, IconButton, List, Portal, Searchbar, SegmentedButtons, Switch, Text, TextInput } from "react-native-paper";
+import { Appbar, Button, Card, Chip, Dialog, HelperText, IconButton, List, Portal, Searchbar, SegmentedButtons, Switch, Text } from "react-native-paper";
+import { Campo, sinSugerencias } from "@/components/Campo";
 import { router, useLocalSearchParams } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { admin } from "@/api/endpoints";
+import { admin, placas } from "@/api/endpoints";
 import { mensajeDeError } from "@/api/cliente";
-import type { CasaAdmin, RolCasa } from "@/api/tipos";
+import type { CasaAdmin, DispositivoAdmin, Paquete, RolCasa } from "@/api/tipos";
 import { Cargando } from "@/components/Estados";
 import { haceCuanto, nombreCompleto } from "@/utils/formato";
 
@@ -28,12 +29,16 @@ function CasaForm({ id, casa }: { id: string; casa: CasaAdmin | null }) {
   const nueva = !casa;
   const qc = useQueryClient();
   const clientes = useQuery({ queryKey: ["admin", "usuarios", "", "CLIENTE"], queryFn: () => admin.usuarios({ rol: "CLIENTE" }) });
+  const barrios = useQuery({ queryKey: ["admin", "barrios"], queryFn: admin.barrios });
 
   const [nombre, setNombre] = useState(casa?.nombre ?? "");
   const [calle, setCalle] = useState(casa?.calle ?? "");
   const [numero, setNumero] = useState(casa?.numero ?? "");
   const [manzana, setManzana] = useState(casa?.manzana ?? "");
-  const [barrio, setBarrio] = useState(casa?.barrio ?? "");
+  const [paquete, setPaquete] = useState<Paquete>(casa?.paquete ?? "BARRIO");
+  const [barrioId, setBarrioId] = useState<number | null>(casa?.barrioId ?? null);
+  const [renombrando, setRenombrando] = useState<DispositivoAdmin | null>(null);
+  const [nombreDisp, setNombreDisp] = useState("");
   const [retardo, setRetardo] = useState(String(casa?.retardoEntradaSeg ?? 0));
   const [activa, setActiva] = useState(casa?.activa ?? true);
   const [miembros, setMiembros] = useState<MiembroForm[]>(
@@ -59,6 +64,7 @@ function CasaForm({ id, casa }: { id: string; casa: CasaAdmin | null }) {
     const seg = Number(retardo);
     if (!Number.isInteger(seg) || seg < 0 || seg > 120) return setError("El retardo debe ser entre 0 y 120 segundos");
     if (miembros.length && !miembros.some((m) => m.rol === "DUENO")) return setError("Elegí quién es el dueño de la casa");
+    if (paquete === "BARRIO" && !barrioId) return setError("Elegí el barrio de la casa");
     setGuardando(true);
     setError(null);
     const datos = {
@@ -66,7 +72,8 @@ function CasaForm({ id, casa }: { id: string; casa: CasaAdmin | null }) {
       calle: calle.trim() || null,
       numero: numero.trim() || null,
       manzana: manzana.trim() || null,
-      barrio: barrio.trim() || null,
+      paquete,
+      barrioId: paquete === "BARRIO" ? barrioId : null,
       retardoEntradaSeg: seg,
     };
     const lista = miembros.map((m) => ({ usuarioId: m.usuarioId, rol: m.rol }));
@@ -85,7 +92,17 @@ function CasaForm({ id, casa }: { id: string; casa: CasaAdmin | null }) {
     }
   };
 
-  const placa = casa?.dispositivos[0];
+  const renombrar = async () => {
+    if (!renombrando) return;
+    try {
+      await placas.renombrar(renombrando.id, nombreDisp.trim());
+      setRenombrando(null);
+      qc.invalidateQueries({ queryKey: ["admin"] });
+    } catch (e) {
+      setError(mensajeDeError(e));
+      setRenombrando(null);
+    }
+  };
 
   return (
     <>
@@ -94,16 +111,39 @@ function CasaForm({ id, casa }: { id: string; casa: CasaAdmin | null }) {
         <Appbar.Content title={nueva ? "Nueva casa" : "Editar casa"} subtitle={casa?.codigo} />
       </Appbar.Header>
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} keyboardShouldPersistTaps="handled">
-        <TextInput label="Nombre (opcional, ej. Casa de Ana)" mode="outlined" value={nombre} onChangeText={setNombre} />
+        <Campo label="Nombre (opcional, ej. Casa de Ana)" mode="outlined" value={nombre} onChangeText={setNombre} />
         <View style={{ flexDirection: "row", gap: 8 }}>
-          <TextInput label="Calle" mode="outlined" value={calle} onChangeText={setCalle} style={{ flex: 2 }} />
-          <TextInput label="Número" mode="outlined" value={numero} onChangeText={setNumero} style={{ flex: 1 }} />
+          <Campo label="Calle" mode="outlined" value={calle} onChangeText={setCalle} style={{ flex: 2 }} />
+          <Campo label="Número" mode="outlined" value={numero} onChangeText={setNumero} style={{ flex: 1 }} />
         </View>
-        <View style={{ flexDirection: "row", gap: 8 }}>
-          <TextInput label="Manzana" mode="outlined" value={manzana} onChangeText={setManzana} style={{ flex: 1 }} />
-          <TextInput label="Barrio" mode="outlined" value={barrio} onChangeText={setBarrio} style={{ flex: 2 }} />
-        </View>
-        <TextInput
+        <Campo label="Manzana" mode="outlined" value={manzana} onChangeText={setManzana} />
+
+        <Text variant="titleMedium">Paquete</Text>
+        <SegmentedButtons
+          value={paquete}
+          onValueChange={(v) => setPaquete(v as Paquete)}
+          buttons={[
+            { value: "BARRIO", label: "Barrio", icon: "home-group" },
+            { value: "INDIVIDUAL", label: "Individual", icon: "home" },
+          ]}
+        />
+        {paquete === "BARRIO" ? (
+          <>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+              {(barrios.data ?? []).map((b) => (
+                <Chip key={b.id} selected={barrioId === b.id} onPress={() => setBarrioId(b.id)} icon={b.tieneGuardia ? "shield-account" : undefined}>
+                  {b.nombre}
+                </Chip>
+              ))}
+            </View>
+            <HelperText type="info">
+              {barrios.data?.length ? "Los barrios con escudo tienen guardia." : "No hay barrios: crealos en la pestaña Sistemas."}
+            </HelperText>
+          </>
+        ) : (
+          <HelperText type="info">Casa individual: sin guardia. Las alarmas avisan al dueño, la familia y por SMS.</HelperText>
+        )}
+        <Campo
           label="Retardo de entrada (segundos)"
           mode="outlined"
           keyboardType="number-pad"
@@ -145,10 +185,26 @@ function CasaForm({ id, casa }: { id: string; casa: CasaAdmin | null }) {
           </Card.Actions>
         </Card>
 
-        {placa ? (
+        {casa?.dispositivos.length ? (
           <Card>
-            <Card.Title title="Placa vinculada" />
-            <List.Item title={placa.deviceId} description={`${placa.online ? "Online" : "Offline"} · ${placa.wifiSsid ?? "—"} · ${haceCuanto(placa.ultimaConexion)}`} left={(p) => <List.Icon {...p} icon="chip" />} />
+            <Card.Title title="Dispositivos" subtitle="Los vincula el dueño desde la app" />
+            {casa.dispositivos.map((d) => (
+              <List.Item
+                key={d.id}
+                title={d.nombre ?? d.deviceId}
+                description={`${d.deviceId} · ${d.online ? "Online" : "Offline"} · ${d.wifiSsid ?? "—"} · ${haceCuanto(d.ultimaConexion)}`}
+                left={(p) => <List.Icon {...p} icon="chip" />}
+                right={() => (
+                  <IconButton
+                    icon="pencil"
+                    onPress={() => {
+                      setNombreDisp(d.nombre ?? "");
+                      setRenombrando(d);
+                    }}
+                  />
+                )}
+              />
+            ))}
           </Card>
         ) : null}
 
@@ -161,10 +217,22 @@ function CasaForm({ id, casa }: { id: string; casa: CasaAdmin | null }) {
       </ScrollView>
 
       <Portal>
+        <Dialog visible={!!renombrando} onDismiss={() => setRenombrando(null)}>
+          <Dialog.Title>Nombre del dispositivo</Dialog.Title>
+          <Dialog.Content>
+            <Campo label="Por ejemplo: Puerta trasera" mode="outlined" value={nombreDisp} onChangeText={setNombreDisp} maxLength={40} />
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setRenombrando(null)}>Cancelar</Button>
+            <Button onPress={renombrar} disabled={!nombreDisp.trim()}>
+              Guardar
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
         <Dialog visible={eligiendo} onDismiss={() => setEligiendo(false)} style={{ maxHeight: "80%" }}>
           <Dialog.Title>Elegí un cliente</Dialog.Title>
           <Dialog.Content>
-            <Searchbar placeholder="Buscar" value={busqueda} onChangeText={setBusqueda} />
+            <Searchbar {...sinSugerencias} placeholder="Buscar" value={busqueda} onChangeText={setBusqueda} />
           </Dialog.Content>
           <Dialog.ScrollArea>
             <ScrollView>

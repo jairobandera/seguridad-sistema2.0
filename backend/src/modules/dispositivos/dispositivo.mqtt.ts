@@ -5,7 +5,7 @@ import { logger } from "../../core/logger";
 import { prisma } from "../../core/prisma";
 import { alCambiarConexion, alRecibirMensaje, placaConectada, TipoMensaje } from "../../core/mqtt/broker";
 import { resolverAck } from "../../core/mqtt/comandos";
-import { emitirEstadoCasa, procesarEventoPuerta, registrarConexion } from "../alarma/alarma.service";
+import { emitirEstadoCasa, procesarEventoPuerta, registrarConexion, revisarBateria } from "../alarma/alarma.service";
 
 const esquemaState = z.object({
   online: z.boolean(),
@@ -14,6 +14,8 @@ const esquemaState = z.object({
   ssid: z.string().max(64).optional(),
   rssi: z.number().int().min(-127).max(0).optional(),
   ip: z.string().max(45).optional(),
+  bat: z.number().int().min(0).max(100).optional(),
+  mv: z.number().int().min(0).max(6000).optional(),
 });
 
 const esquemaEvento = z.object({
@@ -26,6 +28,8 @@ const esquemaTelemetria = z.object({
   rssi: z.number().int().min(-127).max(0).optional(),
   uptime: z.number().nonnegative().optional(),
   heap: z.number().nonnegative().optional(),
+  bat: z.number().int().min(0).max(100).optional(),
+  mv: z.number().int().min(0).max(6000).optional(),
 });
 
 const esquemaAck = z.object({
@@ -33,6 +37,9 @@ const esquemaAck = z.object({
   ok: z.boolean(),
   error: z.string().max(100).nullish(),
 });
+
+// Sin `bat` la placa no tiene batería conectada: se borra el último valor
+const bateriaDe = (m: { bat?: number; mv?: number }) => ({ bateria: m.bat ?? null, bateriaMv: m.bat !== undefined ? (m.mv ?? null) : null });
 
 // Procesa los mensajes de cada placa en orden (evita condiciones de carrera)
 const colas = new Map<string, Promise<void>>();
@@ -67,7 +74,8 @@ async function marcarOnline(deviceId: string, extra: Prisma.DispositivoUpdateInp
     data: { ...extra, online: true, ultimaConexion: new Date() },
   });
   if (!antes.online) await registrarConexion(disp, true);
-  else if (emitir) await emitirEstadoCasa(disp.casaId);
+  else if (emitir || disp.bateria !== antes.bateria) await emitirEstadoCasa(disp.casaId);
+  if (disp.bateria !== antes.bateria) await revisarBateria(disp);
   return disp;
 }
 
@@ -118,6 +126,7 @@ async function manejar(deviceId: string, tipo: TipoMensaje, payload: Buffer) {
           ...(s.ssid !== undefined ? { wifiSsid: s.ssid } : {}),
           ...(s.rssi !== undefined ? { wifiRssi: s.rssi } : {}),
           ...(s.ip ? { ip: s.ip } : {}),
+          ...bateriaDe(s),
         },
         true,
       );
@@ -134,7 +143,7 @@ async function manejar(deviceId: string, tipo: TipoMensaje, payload: Buffer) {
     case "telemetry": {
       const t = parsear(esquemaTelemetria, payload, deviceId, tipo);
       if (!t) return;
-      await marcarOnline(deviceId, t.rssi !== undefined ? { wifiRssi: t.rssi } : {});
+      await marcarOnline(deviceId, { ...(t.rssi !== undefined ? { wifiRssi: t.rssi } : {}), ...bateriaDe(t) });
       return;
     }
     case "ack": {

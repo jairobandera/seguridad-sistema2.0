@@ -1,20 +1,24 @@
 import { api, apiConEstado } from "./cliente";
 import type {
+  Barrio,
   Casa,
   CasaAdmin,
   CasaGuardia,
   CasaGuardiaDetalle,
   Contacto,
   DispositivoAdmin,
+  DispositivoCasa,
   EstadoCasa,
   EstadoSistema,
   Evento,
   Miembro,
   Pagina,
+  Paquete,
   ResumenGuardia,
   Rol,
   RolCasa,
   Sesion,
+  Sistemas,
   Usuario,
   UsuarioAdmin,
 } from "./tipos";
@@ -51,14 +55,16 @@ export const yo = {
 export const casas = {
   mias: () => api<Casa[]>("/api/casas/mias"),
   obtener: (id: number) => api<Casa>(`/api/casas/${id}`),
-  alarma: (id: number, armada: boolean) =>
-    api<{ estado: EstadoCasa; advertencia: string | null }>(`/api/casas/${id}/alarma`, { metodo: "PUT", cuerpo: { armada } }),
+  /** `excluir`: dispositivos que quedan afuera de este armado (armado parcial) */
+  alarma: (id: number, armada: boolean, excluir: number[] = []) =>
+    api<{ estado: EstadoCasa; advertencia: string | null }>(`/api/casas/${id}/alarma`, { metodo: "PUT", cuerpo: { armada, excluir } }),
   eventos: (id: number, cursor?: number) => api<Pagina<Evento>>(`/api/casas/${id}/eventos${qs({ cursor, limit: 25 })}`),
   miembros: (id: number) => api<Miembro[]>(`/api/casas/${id}/miembros`),
   agregarMiembro: (id: number, email: string) => api<Miembro>(`/api/casas/${id}/miembros`, { metodo: "POST", cuerpo: { email } }),
   quitarMiembro: (id: number, usuarioId: number) => api<void>(`/api/casas/${id}/miembros/${usuarioId}`, { metodo: "DELETE" }),
-  codigoVinculacion: (id: number) =>
-    api<{ codigo: string; expiraEn: string }>(`/api/casas/${id}/codigo-vinculacion`, { metodo: "POST" }),
+  /** `nombre`: el que eligió el dueño para el dispositivo nuevo ("Puerta trasera"). */
+  codigoVinculacion: (id: number, nombre?: string) =>
+    api<{ codigo: string; expiraEn: string }>(`/api/casas/${id}/codigo-vinculacion`, { metodo: "POST", cuerpo: { nombre } }),
 };
 
 export const contactos = {
@@ -69,9 +75,12 @@ export const contactos = {
 };
 
 export const placas = {
+  renombrar: (id: number, nombre: string) => api<DispositivoCasa>(`/api/dispositivos/${id}`, { metodo: "PUT", cuerpo: { nombre } }),
   tokenConfig: (id: number) => api<{ token: string; expiraEn: string }>(`/api/dispositivos/${id}/token-config`, { metodo: "POST" }),
   modoConfig: (id: number) =>
     apiConEstado<{ ok: boolean; mensaje?: string }>(`/api/dispositivos/${id}/modo-config`, { metodo: "POST" }),
+  reiniciar: (id: number) =>
+    apiConEstado<{ ok: boolean; mensaje?: string }>(`/api/dispositivos/${id}/reiniciar`, { metodo: "POST" }),
   reset: (id: number) => apiConEstado<{ ok: boolean; mensaje?: string }>(`/api/dispositivos/${id}/reset`, { metodo: "POST" }),
   desvincular: (id: number) => api<void>(`/api/dispositivos/${id}/vinculo`, { metodo: "DELETE" }),
 };
@@ -97,6 +106,8 @@ export interface DatosUsuario {
   telefono?: string | null;
   rol: Rol;
   activo?: boolean;
+  /** Barrios que cubre (solo guardias) */
+  barrioIds?: number[];
 }
 
 export interface DatosCasa {
@@ -104,7 +115,8 @@ export interface DatosCasa {
   calle?: string | null;
   numero?: string | null;
   manzana?: string | null;
-  barrio?: string | null;
+  paquete?: Paquete;
+  barrioId?: number | null;
   retardoEntradaSeg?: number;
   activa?: boolean;
 }
@@ -115,7 +127,7 @@ export const admin = {
     api<{ usuario: UsuarioAdmin; passwordTemporal: string | null }>("/api/admin/usuarios", { metodo: "POST", cuerpo: d }),
   editarUsuario: (id: number, d: Partial<DatosUsuario>) => api<UsuarioAdmin>(`/api/admin/usuarios/${id}`, { metodo: "PUT", cuerpo: d }),
   resetPassword: (id: number) => api<{ passwordTemporal: string }>(`/api/admin/usuarios/${id}/reset-password`, { metodo: "POST" }),
-  casas: (q?: string) => api<CasaAdmin[]>(`/api/admin/casas${qs({ q })}`),
+  casas: (p: { q?: string; paquete?: Paquete; barrioId?: number } = {}) => api<CasaAdmin[]>(`/api/admin/casas${qs(p)}`),
   casa: (id: number) => api<CasaAdmin>(`/api/admin/casas/${id}`),
   crearCasa: (d: DatosCasa & { miembros?: { usuarioId: number; rol: RolCasa }[] }) =>
     api<CasaAdmin>("/api/admin/casas", { metodo: "POST", cuerpo: d }),
@@ -124,4 +136,8 @@ export const admin = {
     api<CasaAdmin>(`/api/admin/casas/${id}/miembros`, { metodo: "PUT", cuerpo: { miembros } }),
   dispositivos: (estado?: string) => api<DispositivoAdmin[]>(`/api/admin/dispositivos${qs({ estado })}`),
   sistema: () => api<EstadoSistema>("/api/admin/sistema"),
+  sistemas: () => api<Sistemas>("/api/admin/sistemas"),
+  barrios: () => api<Barrio[]>("/api/admin/barrios"),
+  crearBarrio: (d: { nombre: string; tieneGuardia: boolean }) => api<Barrio>("/api/admin/barrios", { metodo: "POST", cuerpo: d }),
+  editarBarrio: (id: number, d: Partial<Omit<Barrio, "id">>) => api<Barrio>(`/api/admin/barrios/${id}`, { metodo: "PUT", cuerpo: d }),
 };

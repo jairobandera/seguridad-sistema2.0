@@ -101,14 +101,14 @@ export class ErrorPlaca extends Error {
 export function mensajeError(fase: string, motivo: string): string {
   const textos: Record<string, string> = {
     clave_incorrecta: "La contraseña del WiFi es incorrecta.",
-    red_no_encontrada: "La placa no encuentra esa red. Acercala al router y verificá que sea de 2,4 GHz.",
-    timeout: fase === "mqtt" ? "La placa no logró conectarse al servidor." : "La placa no logró conectarse al WiFi.",
+    red_no_encontrada: "El dispositivo no encuentra esa red. Acercalo al router y verificá que sea de 2,4 GHz.",
+    timeout: fase === "mqtt" ? "El dispositivo no logró conectarse al servidor." : "El dispositivo no logró conectarse al WiFi.",
     codigo_invalido: "El código de vinculación venció. Volvé a intentar.",
-    ya_vinculada: "Esta placa está vinculada a otra casa. Pedí que la desvinculen primero.",
-    sin_internet: "La placa se conectó al WiFi pero no llega al servidor. Revisá que la red tenga internet.",
-    servidor: "El servidor no pudo vincular la placa. Probá de nuevo.",
-    token_invalido: "La placa rechazó la autorización. Volvé a intentar.",
-    ocupado: "La placa está ocupada con otra configuración. Esperá unos segundos.",
+    ya_vinculada: "Este dispositivo está vinculado a otra casa. Pedí que lo desvinculen primero.",
+    sin_internet: "El dispositivo se conectó al WiFi pero no llega al servidor. Revisá que la red tenga internet.",
+    servidor: "El servidor no pudo vincular el dispositivo. Probá de nuevo.",
+    token_invalido: "El dispositivo rechazó la autorización. Volvé a intentar.",
+    ocupado: "El dispositivo está ocupado con otra configuración. Esperá unos segundos.",
     json_invalido: "Datos inválidos.",
   };
   return textos[motivo] ?? `Error (${fase}: ${motivo})`;
@@ -157,7 +157,7 @@ export class ConexionPlaca {
   }
 
   private async enviar(obj: object) {
-    if (!this.dispositivo) throw new Error("No hay conexión con la placa");
+    if (!this.dispositivo) throw new Error("No hay conexión con el dispositivo");
     const datos = Buffer.from(JSON.stringify(obj) + "\n", "utf8");
     const trozo = Math.max(20, this.mtu - 3);
     for (let i = 0; i < datos.length; i += trozo) {
@@ -170,7 +170,7 @@ export class ConexionPlaca {
     return new Promise((resolve, reject) => {
       const t = setTimeout(() => {
         this.oyentes.delete(fn);
-        reject(new Error("La placa no respondió a tiempo"));
+        reject(new Error("El dispositivo no respondió a tiempo"));
       }, timeoutMs);
       const fn = (m: Mensaje) => {
         if (m.r === "progreso") alProgreso?.(m.fase);
@@ -189,7 +189,7 @@ export class ConexionPlaca {
   }
 
   async leerInfo(): Promise<{ id: string; fw: string; vinculada: boolean }> {
-    if (!this.dispositivo) throw new Error("No hay conexión con la placa");
+    if (!this.dispositivo) throw new Error("No hay conexión con el dispositivo");
     const c = await this.dispositivo.readCharacteristicForService(SERVICIO, INFO);
     return JSON.parse(Buffer.from(c.value ?? "", "base64").toString("utf8"));
   }

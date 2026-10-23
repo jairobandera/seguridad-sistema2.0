@@ -10,6 +10,7 @@ import { refrescarRoomsUsuario } from "../../core/socket";
 import { cambiarAlarma, estadoCasa } from "../alarma/alarma.service";
 import { eventoDTO, incluirEvento } from "../eventos/evento.dto";
 import { esquemaEmail } from "../usuarios/usuario.publico";
+import { aplanarBarrio } from "../barrios/barrio.service";
 
 export const casasRouter = Router();
 
@@ -22,7 +23,8 @@ const datosCasa = {
   calle: true,
   numero: true,
   manzana: true,
-  barrio: true,
+  paquete: true,
+  barrio: { select: { nombre: true } },
   alarmaArmada: true,
   retardoEntradaSeg: true,
 } as const;
@@ -36,7 +38,7 @@ casasRouter.get("/mias", async (req, res) => {
     orderBy: { casaId: "asc" },
   });
   const casas = await Promise.all(
-    membresias.map(async (m) => ({ ...m.casa, rolCasa: m.rol, estado: await estadoCasa(m.casaId) })),
+    membresias.map(async (m) => ({ ...aplanarBarrio(m.casa), rolCasa: m.rol, estado: await estadoCasa(m.casaId) })),
   );
   res.json(casas);
 });
@@ -46,7 +48,7 @@ casasRouter.get("/:id", async (req, res) => {
   const id = leerId(req.params.id);
   const { rolCasa } = await verificarAccesoCasa(u, id);
   const casa = await prisma.casa.findUniqueOrThrow({ where: { id }, select: datosCasa });
-  res.json({ ...casa, rolCasa, estado: await estadoCasa(id) });
+  res.json({ ...aplanarBarrio(casa), rolCasa, estado: await estadoCasa(id) });
 });
 
 casasRouter.put("/:id/alarma", async (req, res) => {
@@ -54,8 +56,11 @@ casasRouter.put("/:id/alarma", async (req, res) => {
   if (u.rol === "GUARDIA") throw prohibido("Los guardias no pueden armar ni desarmar alarmas");
   const id = leerId(req.params.id);
   await verificarAccesoCasa(u, id);
-  const { armada } = z.object({ armada: z.boolean() }).parse(req.body);
-  res.json(await cambiarAlarma(u.id, id, armada));
+  // `excluir`: ids de dispositivos que quedan afuera de este armado (armado parcial)
+  const { armada, excluir } = z
+    .object({ armada: z.boolean(), excluir: z.array(z.number().int().positive()).max(50).optional() })
+    .parse(req.body);
+  res.json(await cambiarAlarma(u.id, id, armada, excluir));
 });
 
 casasRouter.get("/:id/eventos", async (req, res) => {
@@ -123,16 +128,21 @@ casasRouter.delete("/:id/miembros/:usuarioId", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Vinculación de placas
+// Vinculación de dispositivos (una casa puede tener varios)
 // ---------------------------------------------------------------------------
+export const esquemaNombreDispositivo = z.string().trim().min(1, "Poné un nombre").max(40, "Máximo 40 caracteres");
+
 casasRouter.post("/:id/codigo-vinculacion", async (req, res) => {
   const u = usuarioDe(req);
   const id = leerId(req.params.id);
   await verificarAccesoCasa(u, id, { gestion: true });
+  const { nombre } = z.object({ nombre: esquemaNombreDispositivo.optional() }).parse(req.body ?? {});
   const codigo = tokenAleatorio(18);
   const expiraEn = new Date(Date.now() + CODIGO_VINCULACION_MIN * 60_000);
   // Un código vigente por casa: los anteriores sin usar se invalidan
   await prisma.codigoVinculacion.deleteMany({ where: { casaId: id, usadoEn: null } });
-  await prisma.codigoVinculacion.create({ data: { codigoHash: sha256(codigo), casaId: id, usuarioId: u.id, expiraEn } });
+  await prisma.codigoVinculacion.create({
+    data: { codigoHash: sha256(codigo), casaId: id, usuarioId: u.id, expiraEn, nombreDispositivo: nombre ?? null },
+  });
   res.status(201).json({ codigo, expiraEn: expiraEn.toISOString() });
 });

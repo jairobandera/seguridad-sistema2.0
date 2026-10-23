@@ -49,7 +49,7 @@ export function AlarmaOverlay() {
       <View style={estilos.fondo}>
         <Icon source="alarm-light" size={96} color="#FFFFFF" />
         <Text variant="displaySmall" style={estilos.titulo}>
-          ¡PUERTA ABIERTA!
+          ¡{(evento.dispositivo?.nombre?.trim() || "Puerta").toUpperCase()} ABIERTA!
         </Text>
         <Text variant="titleLarge" style={estilos.texto}>
           {direccion(evento.casa)}

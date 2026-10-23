@@ -6,6 +6,7 @@ import { guardia } from "@/api/endpoints";
 import { EventoItem } from "@/components/EventoItem";
 import { Indicador } from "@/components/Indicador";
 import { Cargando, ErrorReintentar } from "@/components/Estados";
+import { DispositivoFila, resumenConexion, resumenPuertas } from "@/components/DispositivoFila";
 import { direccion } from "@/utils/formato";
 import { formatoTelefono } from "@/utils/telefono";
 import { colores } from "@/tema";
@@ -22,6 +23,9 @@ export default function CasaGuardiaDetalle() {
   });
 
   const c = q.data;
+  const dispositivos = c?.estado?.dispositivos ?? [];
+  const puertas = resumenPuertas(dispositivos);
+  const conexion = resumenConexion(dispositivos);
   const abiertas = c?.eventos.filter((e) => e.estado && (e.estado.estado === "PENDIENTE" || e.estado.estado === "EN_CURSO")).length ?? 0;
 
   return (
@@ -38,9 +42,30 @@ export default function CasaGuardiaDetalle() {
         <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }} refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={() => void q.refetch()} />}>
           <View style={{ flexDirection: "row", gap: 8 }}>
             <Indicador icono={c.estado?.alarmaArmada ? "shield-lock" : "shield-off-outline"} titulo="Alarma" valor={c.estado?.alarmaArmada ? "Armada" : "Desarmada"} color={c.estado?.alarmaArmada ? colores.ok : colores.apagado} />
-            <Indicador icono={c.estado?.puertaAbierta ? "door-open" : "door-closed"} titulo="Puerta" valor={c.estado?.dispositivo ? (c.estado.puertaAbierta ? "Abierta" : "Cerrada") : "—"} color={c.estado?.puertaAbierta ? colores.peligro : colores.ok} />
-            <Indicador icono={c.estado?.online ? "wifi" : "wifi-off"} titulo="Placa" valor={c.estado?.dispositivo ? (c.estado.online ? "Online" : "Offline") : "Sin placa"} color={c.estado?.online ? colores.ok : colores.peligro} />
+            <Indicador
+              icono={puertas.abierta ? "door-open" : "door-closed"}
+              titulo="Aberturas"
+              valor={dispositivos.length ? puertas.texto : "—"}
+              color={puertas.abierta ? colores.peligro : colores.ok}
+            />
+            <Indicador
+              icono={conexion.ok ? "wifi" : "wifi-off"}
+              titulo="Dispositivos"
+              valor={dispositivos.length ? conexion.texto : "Sin dispositivos"}
+              color={dispositivos.length && conexion.ok ? colores.ok : colores.peligro}
+            />
           </View>
+
+          {dispositivos.length ? (
+            <Card>
+              {dispositivos.map((dsp, i) => (
+                <View key={dsp.id}>
+                  {i > 0 ? <Divider /> : null}
+                  <DispositivoFila d={dsp} />
+                </View>
+              ))}
+            </Card>
+          ) : null}
 
           {abiertas > 0 ? (
             <Button mode="contained" icon="check-all" onPress={() => resolverTodo.mutate()} loading={resolverTodo.isPending}>

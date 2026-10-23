@@ -86,6 +86,11 @@ Respuestas:
 | 409 | `{"error":"ya_vinculada"}` (vinculada a **otra** casa) | `ya_vinculada` |
 
 Si la placa ya estaba vinculada a la **misma** casa, se re-vincula: se rotan secreto y credenciales MQTT.
+
+**Respuesta perdida**: si la placa no recibe la respuesta (`HTTP -1`), repite el canje hasta 3 veces (cada 2 s).
+Dentro de los 2 minutos del canje, el backend reconoce el reintento (mismo `deviceId` y mismo `secret`) y
+devuelve credenciales MQTT nuevas en vez de `codigo_invalido`. Esta ruta responde sin cabeceras de seguridad web
+(`helmet`) ni de límite de intentos, para no llenar el búfer HTTP del ESP32.
 Al vincular, el backend reinicia `ultimoSeq` a 0.
 
 ---
@@ -100,10 +105,10 @@ solo a `dev/{deviceId}/cmd`.
 
 | Topic | Sentido | QoS | Retain | Payload |
 |---|---|---|---|---|
-| `dev/{id}/state` | placa → | 1 | sí | `{"online":true,"puerta":"abierta"\|"cerrada","fw":"2.0.0","ssid":"…","rssi":-60,"ip":"…"}` |
+| `dev/{id}/state` | placa → | 1 | sí | `{"online":true,"puerta":"abierta"\|"cerrada","fw":"2.0.0","ssid":"…","rssi":-60,"ip":"…","bat":85,"mv":4010}` |
 | `dev/{id}/state` (LWT) | broker → | 1 | sí | `{"online":false}` |
 | `dev/{id}/event` | placa → | 1 | no | `{"seq":12,"tipo":"PUERTA_ABIERTA"\|"PUERTA_CERRADA","ts":1730000000}` |
-| `dev/{id}/telemetry` | placa → | 0 | no | `{"rssi":-61,"uptime":3600,"heap":120000}` cada 60 s |
+| `dev/{id}/telemetry` | placa → | 0 | no | `{"rssi":-61,"uptime":3600,"heap":120000,"bat":85,"mv":4010}` cada 60 s |
 | `dev/{id}/cmd` | backend → | 1 | no | `{"id":"<uuid>","cmd":"factory_reset"\|"open_ble"\|"reboot"\|"ping"}` |
 | `dev/{id}/ack` | placa → | 1 | no | `{"id":"<uuid>","ok":true,"error":null}` |
 
@@ -114,8 +119,12 @@ solo a `dev/{deviceId}/cmd`.
 - El backend toma el `deviceId` **solo del topic**, nunca del payload.
 - Offline: por LWT o desconexión, con 30 s de gracia (evita falsas alarmas por cortes breves);
   respaldo: 150 s sin `state` ni `telemetry`.
-- Si el broker rechaza las credenciales 3 veces seguidas, la placa se considera desvinculada:
-  borra sus credenciales MQTT y abre el Bluetooth.
+- Si el broker rechaza las credenciales (CONNACK 4 o 5) 20 veces seguidas (~2 min), la placa se considera
+  desvinculada: borra sus credenciales MQTT y abre el Bluetooth. Si el backend no puede verificarlas por un
+  error propio (ej. MySQL caído) responde CONNACK 3 (servidor no disponible), que la placa no cuenta.
+- `bat` (0–100) y `mv` (milivoltios) solo vienen si la placa tiene batería conectada al divisor (GPIO34).
+- Batería baja: el backend avisa por push a la familia una vez al 20 % (`BATERIA_BAJA`, INFO) y otra al 10 %
+  (ALERTA). Vuelve a avisar recién después de superar el 30 % (la cargaron).
 - `factory_reset`: la placa manda el `ack`, borra todo y reinicia en modo configuración.
 
 ---
@@ -124,23 +133,45 @@ solo a `dev/{deviceId}/cmd`.
 
 Conexión: `io(API_URL, { auth: { token: <accessToken> }, transports: ['websocket'] })`.
 El servidor une al socket a sus rooms según el usuario (`user:{id}`, `casa:{id}` por cada casa,
-`guardias`, `admins`). La app no necesita emitir nada.
+`barrio:{id}` para los guardias —solo barrios activos con guardia que cubren— y `admins`). La app no necesita emitir nada.
+
+**Paquetes y guardia**: una casa es `BARRIO` (pertenece a un barrio) o `INDIVIDUAL`. Tiene guardia solo si es `BARRIO`
+y su barrio está activo con `tieneGuardia`. Sin guardia, la alarma avisa al dueño y la familia (push) y por SMS, no crea
+`EventoEstado` y los guardias no la ven. "Guardias" en las tablas = los guardias que cubren el barrio de la casa.
 
 | Evento | Payload | Quién lo recibe |
 |---|---|---|
-| `casa:estado` | `{casaId, alarmaArmada, puertaAbierta, online, rssi, ssid}` | miembros de la casa, guardias, admins |
+| `casa:estado` | `EstadoCasa` (ver abajo) | miembros de la casa, guardias, admins |
 | `evento:nuevo` | `EventoDTO` (ver abajo) | miembros de la casa, guardias, admins |
 | `evento:estado` | `{eventoId, casaId, estado, guardia:{id,nombre}\|null, nota}` | guardias, admins, miembros |
 | `dispositivo:config` | `{deviceId, casaId, fase:"vinculada"\|"desvinculada"\|"reset"}` | miembros de la casa, admins |
 
 ```ts
+type EstadoCasa = {
+  casaId: number;
+  alarmaArmada: boolean;
+  puertaAbierta: boolean;       // alguno abierto
+  online: boolean;              // todos conectados (y al menos uno)
+  dispositivosOffline: number;
+  armadoParcial: boolean;       // armada con algún dispositivo afuera
+  tieneGuardia: boolean;
+  dispositivos: {               // por orden de vinculación
+    id: number; deviceId: string; nombre: string | null;   // "Puerta principal", "Ventana cocina"
+    online: boolean; puertaAbierta: boolean | null;
+    rssi: number | null; ssid: string | null; bateria: number | null;  // bateria 0–100
+    excluido: boolean;          // armado parcial: no dispara la alarma ni alerta si se desconecta
+    firmwareVersion: string | null; ultimaConexion: string | null;
+  }[];
+};
+
 type EventoDTO = {
   id: number;
   tipo: 'PUERTA_ABIERTA' | 'PUERTA_CERRADA' | 'ALARMA_ARMADA' | 'ALARMA_DESARMADA'
-      | 'DISPOSITIVO_OFFLINE' | 'DISPOSITIVO_ONLINE' | 'DISPOSITIVO_VINCULADO' | 'PRUEBA';
+      | 'DISPOSITIVO_OFFLINE' | 'DISPOSITIVO_ONLINE' | 'DISPOSITIVO_VINCULADO' | 'BATERIA_BAJA' | 'PRUEBA';
   severidad: 'INFO' | 'ALERTA' | 'CRITICA';
   fechaHora: string;            // ISO
   alarmaArmada: boolean;        // estado de la alarma en ese momento
+  valor: string | null;         // dato extra: % de batería en BATERIA_BAJA
   casa: { id: number; nombre: string | null; calle: string | null; numero: string | null;
           manzana: string | null; barrio: string | null } | null;
   dispositivo: { deviceId: string; nombre: string | null } | null;
@@ -166,7 +197,7 @@ Base: `API_URL`. Autenticación: `Authorization: Bearer <accessToken>` (15 min).
 | POST | `/auth/cambiar-password` | `{actual,nueva}` (JWT) → 204 |
 
 ### Usuario actual
-| GET | `/api/me` | `{id,nombre,apellido,email,telefono,rol,debeCambiarPassword,casas:[{id,nombre,rolCasa}]}` |
+| GET | `/api/me` | `{id,nombre,apellido,email,telefono,rol,debeCambiarPassword,casas:[{id,nombre,paquete,barrio,rolCasa}]}` |
 |---|---|---|
 | POST | `/api/push-tokens` | `{token,plataforma}` |
 | DELETE | `/api/push-tokens` | `{token}` |
@@ -175,36 +206,43 @@ Base: `API_URL`. Autenticación: `Authorization: Bearer <accessToken>` (15 min).
 ### Cliente (miembro de la casa)
 | Método | Ruta | Notas |
 |---|---|---|
-| GET | `/api/casas/mias` | `[CasaEstado]` con `rolCasa`, dispositivo y estado |
-| PUT | `/api/casas/:id/alarma` | `{armada}` → `{casa, advertencia?: "puerta_abierta"}` |
+| GET | `/api/casas/mias` | `[Casa]` con `paquete`, `barrio` (nombre), `rolCasa` y `estado: EstadoCasa` |
+| PUT | `/api/casas/:id/alarma` | `{armada, excluir?: number[]}` → `{estado, advertencia?: "puerta_abierta"}`. `excluir`: dispositivos que quedan afuera de este armado (armado parcial; al desarmar se limpia). No se puede dejar todo afuera |
 | GET | `/api/casas/:id/eventos?cursor=&limit=` | `{items:EventoDTO[], siguiente:number\|null}` |
 | GET | `/api/casas/:id/miembros` | `[{usuarioId,nombre,apellido,email,telefono,rol}]` |
 | POST | `/api/casas/:id/miembros` | `{email}` (DUEÑO) agrega un FAMILIAR existente |
 | DELETE | `/api/casas/:id/miembros/:usuarioId` | DUEÑO |
-| POST | `/api/casas/:id/codigo-vinculacion` | DUEÑO → `{codigo, expiraEn}` |
+| POST | `/api/casas/:id/codigo-vinculacion` | DUEÑO, `{nombre?}` (nombre del dispositivo nuevo, máx. 40) → `{codigo, expiraEn}`. Una casa puede tener varios dispositivos |
 | GET/POST | `/api/contactos` | propios, máx. 2, `{nombre,telefono(E.164),relacion?}` |
 | PUT/DELETE | `/api/contactos/:id` | propios |
 
-### Placas
+### Dispositivos
 | Método | Ruta | Notas |
 |---|---|---|
-| POST | `/api/dispositivos/provision` | lo llama la placa (sección 2) |
-| GET | `/api/dispositivos/:id` | miembro, guardia o admin |
+| POST | `/api/dispositivos/provision` | lo llama la placa (sección 2). Nombre: el del código; si no tiene, el anterior (misma casa) o "Puerta principal" / "Dispositivo N" |
+| GET | `/api/dispositivos/:id` | miembro, guardia (de su barrio) o admin |
+| PUT | `/api/dispositivos/:id` | DUEÑO/ADMIN, `{nombre}` → cambia el nombre |
 | POST | `/api/dispositivos/:id/token-config` | DUEÑO/ADMIN → `{token, expiraEn}` |
 | POST | `/api/dispositivos/:id/modo-config` | DUEÑO/ADMIN → manda `open_ble`; `{ok:true}` o 202 si no respondió |
+| POST | `/api/dispositivos/:id/reiniciar` | DUEÑO/ADMIN → manda `reboot` (no borra nada); `{ok:true}` o 202 si no está conectado |
 | POST | `/api/dispositivos/:id/reset` | DUEÑO/ADMIN → `factory_reset` + desvincula |
 | DELETE | `/api/dispositivos/:id/vinculo` | DUEÑO/ADMIN → desvincula sin tocar la placa |
 
 ### Guardia
-`GET /api/guardia/resumen`, `GET /api/guardia/casas`, `GET /api/guardia/casas/:id`,
+Todo filtrado a las casas con guardia de los barrios que cubre el guardia (el admin ve todo; una casa ajena da 404).
+`GET /api/guardia/resumen` (`dispositivosOffline` en vez de `placasOffline`),
+`GET /api/guardia/casas` (`cantidadDispositivos`, `dispositivosOffline`), `GET /api/guardia/casas/:id`,
 `GET /api/guardia/eventos?estado=&casaId=&cursor=`, `POST /api/guardia/eventos/:id/tomar`,
 `POST /api/guardia/eventos/:id/resolver {resultado:'RESUELTO'|'FALSA_ALARMA', nota?}`,
 `POST /api/guardia/casas/:id/resolver-todo`.
 
 ### Admin
-`GET|POST /api/admin/usuarios`, `PUT /api/admin/usuarios/:id`,
+`GET|POST /api/admin/usuarios`, `PUT /api/admin/usuarios/:id` (guardias: `barrioIds:number[]` = barrios que cubre),
 `POST /api/admin/usuarios/:id/reset-password` → `{passwordTemporal}`,
-`GET|POST /api/admin/casas`, `GET|PUT /api/admin/casas/:id`,
+`GET /api/admin/casas?q=&paquete=&barrioId=`, `POST /api/admin/casas`, `GET|PUT /api/admin/casas/:id`
+(`paquete: BARRIO|INDIVIDUAL`, `barrioId` obligatorio con BARRIO y se ignora con INDIVIDUAL),
+`GET|POST /api/admin/barrios`, `PUT /api/admin/barrios/:id` `{nombre?, tieneGuardia?, activo?}`,
+`GET /api/admin/sistemas` → `{barrios:[{...barrio, guardias, casas, casasArmadas, dispositivos, dispositivosOffline}], individuales:{...}}`,
 `PUT /api/admin/casas/:id/miembros` `{miembros:[{usuarioId,rol}]}`,
 `GET /api/admin/dispositivos?estado=`, `GET /api/admin/sistema`.
 

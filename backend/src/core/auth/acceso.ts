@@ -2,10 +2,12 @@ import { RolCasa } from "@prisma/client";
 import { prisma } from "../prisma";
 import { noEncontrado, prohibido } from "../errores";
 import { UsuarioToken } from "./tokens";
+import { guardiaVeCasa } from "../../modules/barrios/barrio.service";
 
 /**
  * Reglas de acceso a una casa:
- * - ADMIN y GUARDIA pueden ver todas.
+ * - ADMIN puede ver todas.
+ * - GUARDIA solo las casas con guardia de los barrios que cubre (las demás "no existen").
  * - CLIENTE solo las casas donde es miembro. `soloDueno` exige rol DUENO en la casa.
  * - `gestion`: acciones sobre la placa/miembros (ADMIN o DUENO; nunca GUARDIA).
  */
@@ -19,6 +21,7 @@ export async function verificarAccesoCasa(
 
   if (u.rol === "ADMIN") return { rolCasa: null };
   if (u.rol === "GUARDIA") {
+    if (!(await guardiaVeCasa(u.id, casaId))) throw noEncontrado("Casa no encontrada");
     if (opciones.soloDueno || opciones.gestion) throw prohibido();
     return { rolCasa: null };
   }
@@ -42,9 +45,9 @@ export async function verificarAccesoDispositivo(
   opciones: { gestion?: boolean } = {},
 ) {
   const disp = await prisma.dispositivo.findUnique({ where: { id: dispositivoId } });
-  if (!disp) throw noEncontrado("Placa no encontrada");
+  if (!disp) throw noEncontrado("Dispositivo no encontrado");
   if (u.rol === "ADMIN") return disp;
-  if (!disp.casaId) throw noEncontrado("Placa no encontrada");
+  if (!disp.casaId) throw noEncontrado("Dispositivo no encontrado");
   await verificarAccesoCasa(u, disp.casaId, opciones);
   return disp;
 }

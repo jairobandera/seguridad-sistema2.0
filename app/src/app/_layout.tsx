@@ -63,7 +63,9 @@ function Sesion() {
       if (!rol) return;
       const tipo = r.notification.request.content.data?.tipo;
       if (rol === "GUARDIA" && (tipo === "ALARMA" || tipo === "OFFLINE")) router.navigate("/guardia/alertas");
-      else if (rol === "CLIENTE") router.navigate(tipo === "ALARMA" || tipo === "OFFLINE" ? "/cliente/actividad" : "/cliente");
+      else if (rol === "CLIENTE") {
+        router.navigate(tipo === "ALARMA" || tipo === "OFFLINE" ? "/cliente/actividad" : tipo === "BATERIA" ? "/cliente/dispositivos" : "/cliente");
+      }
       else router.navigate(rutaInicio(rol));
     });
     return () => sub.remove();

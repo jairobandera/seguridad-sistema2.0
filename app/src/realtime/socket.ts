@@ -1,3 +1,4 @@
+import { AppState, type NativeEventSubscription } from "react-native";
 import { io, Socket } from "socket.io-client";
 import type { QueryClient } from "@tanstack/react-query";
 import { API_URL } from "@/config";
@@ -7,6 +8,8 @@ import { useSesion } from "@/store/sesion";
 import { useAlarma } from "@/store/alarma";
 
 let socket: Socket | null = null;
+let reintento: ReturnType<typeof setTimeout> | undefined;
+let appState: NativeEventSubscription | null = null;
 
 type Oyente = (datos: { deviceId: string; casaId: number; fase: string }) => void;
 const oyentesConfig = new Set<Oyente>();
@@ -27,14 +30,35 @@ export function conectarTiempoReal(qc: QueryClient) {
     reconnectionDelayMax: 10000,
   });
 
+  // Si el servidor rechaza la conexión (token vencido, servidor reiniciándose), socket.io no reintenta solo
   socket.on("connect_error", async (err) => {
-    if (err.message === "token_invalido" && (await renovarSesion())) socket?.connect();
+    if (err.message === "token_invalido") await renovarSesion();
+    if (!useSesion.getState().accessToken) return;
+    clearTimeout(reintento);
+    reintento = setTimeout(() => {
+      if (socket && !socket.connected) socket.connect();
+    }, 3000);
   });
 
-  // Al reconectar, refresca todo por si se perdió algo
-  socket.io.on("reconnect", () => qc.invalidateQueries());
+  // Al (re)conectar, refresca todo por si se perdió algún aviso mientras estaba desconectado
+  let primeraConexion = true;
+  socket.on("connect", () => {
+    if (!primeraConexion) qc.invalidateQueries();
+    primeraConexion = false;
+  });
 
-  socket.on("casa:estado", (estado: EstadoCasa) => {
+  // Al volver a la app (estaba en segundo plano): Android puede haber cortado la conexión
+  appState?.remove();
+  appState = AppState.addEventListener("change", (s) => {
+    if (s !== "active" || !socket) return;
+    if (!socket.connected) socket.connect();
+    qc.invalidateQueries({ queryKey: ["casas"] });
+  });
+
+  socket.on("casa:estado", async (estado: EstadoCasa) => {
+    // Una recarga de la lista que ya estaba en curso traería el estado VIEJO y pisaría este:
+    // se cancela antes de aplicar el nuevo
+    await qc.cancelQueries({ queryKey: ["casas", "mias"] });
     qc.setQueryData<Casa[]>(["casas", "mias"], (lista) =>
       lista?.map((c) => (c.id === estado.casaId ? { ...c, alarmaArmada: estado.alarmaArmada, estado } : c)),
     );
@@ -64,6 +88,9 @@ export function conectarTiempoReal(qc: QueryClient) {
 }
 
 export function desconectarTiempoReal() {
+  clearTimeout(reintento);
+  appState?.remove();
+  appState = null;
   socket?.removeAllListeners();
   socket?.disconnect();
   socket = null;

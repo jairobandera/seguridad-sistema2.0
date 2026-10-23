@@ -15,7 +15,7 @@ export default function TabsCliente() {
     >
       <Tabs.Screen name="index" options={{ title: "Inicio", tabBarIcon: iconoTab("home") }} />
       <Tabs.Screen name="actividad" options={{ title: "Actividad", tabBarIcon: iconoTab("history") }} />
-      <Tabs.Screen name="placa" options={{ title: "Placa", tabBarIcon: iconoTab("chip") }} />
+      <Tabs.Screen name="dispositivos" options={{ title: "Dispositivos", tabBarIcon: iconoTab("chip") }} />
       <Tabs.Screen name="mas" options={{ title: "Más", tabBarIcon: iconoTab("menu") }} />
     </Tabs>
   );

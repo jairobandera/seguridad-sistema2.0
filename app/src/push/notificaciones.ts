@@ -32,7 +32,7 @@ async function crearCanales() {
   });
   await Notifications.setNotificationChannelAsync(CANAL_GENERAL, {
     name: "Avisos",
-    description: "Placa desconectada y otros avisos",
+    description: "Dispositivo desconectado, batería baja y otros avisos",
     importance: AndroidImportance.HIGH,
   });
 }

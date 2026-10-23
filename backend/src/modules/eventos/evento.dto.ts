@@ -1,7 +1,8 @@
 import { Prisma } from "@prisma/client";
+import { aplanarBarrio, selectCasaDireccion } from "../barrios/barrio.service";
 
 export const incluirEvento = {
-  casa: { select: { id: true, nombre: true, calle: true, numero: true, manzana: true, barrio: true } },
+  casa: { select: selectCasaDireccion },
   dispositivo: { select: { deviceId: true, nombre: true } },
   usuario: { select: { id: true, nombre: true, apellido: true } },
   estado: { include: { guardia: { select: { id: true, nombre: true, apellido: true } } } },
@@ -19,7 +20,8 @@ export function eventoDTO(e: EventoConRelaciones) {
     severidad: e.severidad,
     fechaHora: e.fechaHora.toISOString(),
     alarmaArmada: e.alarmaArmada,
-    casa: e.casa,
+    valor: e.valor,
+    casa: e.casa ? aplanarBarrio(e.casa) : null,
     dispositivo: e.dispositivo,
     usuario: e.usuario ? { id: e.usuario.id, nombre: nombreCompleto(e.usuario) } : null,
     estado: e.estado

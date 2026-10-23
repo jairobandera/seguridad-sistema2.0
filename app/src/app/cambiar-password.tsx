@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ScrollView, StyleSheet } from "react-native";
-import { Appbar, Button, HelperText, Text, TextInput, useTheme } from "react-native-paper";
+import { Appbar, Button, HelperText, Text, useTheme } from "react-native-paper";
+import { Campo } from "@/components/Campo";
 import { router } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { auth } from "@/api/endpoints";
@@ -50,9 +51,9 @@ export default function CambiarPassword() {
             Por seguridad, elegí una contraseña nueva para tu cuenta. La contraseña actual es la que te dio la administración.
           </Text>
         ) : null}
-        <TextInput label="Contraseña actual" mode="outlined" secureTextEntry value={actual} onChangeText={setActual} />
-        <TextInput label="Nueva contraseña (mínimo 8)" mode="outlined" secureTextEntry value={nueva} onChangeText={setNueva} style={{ marginTop: 12 }} />
-        <TextInput label="Repetir nueva contraseña" mode="outlined" secureTextEntry value={repetir} onChangeText={setRepetir} style={{ marginTop: 12 }} />
+        <Campo label="Contraseña actual" mode="outlined" secureTextEntry value={actual} onChangeText={setActual} />
+        <Campo label="Nueva contraseña (mínimo 8)" mode="outlined" secureTextEntry value={nueva} onChangeText={setNueva} style={{ marginTop: 12 }} />
+        <Campo label="Repetir nueva contraseña" mode="outlined" secureTextEntry value={repetir} onChangeText={setRepetir} style={{ marginTop: 12 }} />
         <HelperText type="error" visible={!!error}>
           {error}
         </HelperText>

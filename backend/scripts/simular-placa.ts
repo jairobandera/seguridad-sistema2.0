@@ -21,6 +21,8 @@ const opcion = (n: string) => {
 const API = opcion("api") ?? "http://localhost:3000";
 const DEVICE_ID = (opcion("id") ?? "AABBCCDDEEFF").toUpperCase();
 const ARCHIVO = path.join(__dirname, `.placa-${DEVICE_ID}.json`);
+// --bat 75 simula una batería al 75 %
+const BAT = opcion("bat") !== undefined ? { bat: Number(opcion("bat")), mv: 3300 + Number(opcion("bat")) * 9 } : {};
 
 interface Credenciales {
   url: string;
@@ -69,7 +71,7 @@ async function main() {
   const estado = () =>
     cliente.publish(
       `${base}/state`,
-      JSON.stringify({ online: true, puerta: puertaAbierta ? "abierta" : "cerrada", fw: "sim-2.0.0", ssid: "Simulador", rssi: -55, ip: "127.0.0.1" }),
+      JSON.stringify({ online: true, puerta: puertaAbierta ? "abierta" : "cerrada", fw: "sim-2.0.0", ssid: "Simulador", rssi: -55, ip: "127.0.0.1", ...BAT }),
       { qos: 1, retain: true },
     );
   const puerta = (abierta: boolean) => {
@@ -108,7 +110,7 @@ async function main() {
   });
 
   const telemetria = setInterval(() => {
-    cliente.publish(`${base}/telemetry`, JSON.stringify({ rssi: -55, uptime: Math.round(process.uptime()), heap: 100000 }));
+    cliente.publish(`${base}/telemetry`, JSON.stringify({ rssi: -55, uptime: Math.round(process.uptime()), heap: 100000, ...BAT }));
   }, 60_000);
   telemetria.unref();
 

@@ -4,11 +4,13 @@ import { config } from "./config";
 import { logger } from "./logger";
 import { prisma } from "./prisma";
 import { verificarAcceso } from "./auth/tokens";
+import { barrioConGuardiaDeCasa, barriosVisiblesDeGuardia } from "../modules/barrios/barrio.service";
 
 let io: Server | null = null;
 
 const roomCasa = (casaId: number) => `casa:${casaId}`;
 const roomUsuario = (id: number) => `user:${id}`;
+const roomBarrio = (barrioId: number) => `barrio:${barrioId}`;
 
 export function iniciarSocket(server: http.Server): Server {
   io = new Server(server, {
@@ -40,11 +42,9 @@ export function iniciarSocket(server: http.Server): Server {
   io.on("connection", async (socket) => {
     const { id, rol } = socket.data.usuario as { id: number; rol: string };
     socket.join(roomUsuario(id));
-    if (rol === "GUARDIA") socket.join("guardias");
     if (rol === "ADMIN") socket.join("admins");
     try {
-      const membresias = await prisma.casaMiembro.findMany({ where: { usuarioId: id }, select: { casaId: true } });
-      membresias.forEach((m) => socket.join(roomCasa(m.casaId)));
+      (await roomsDeseadas(id, rol)).forEach((r) => socket.join(r));
     } catch (err) {
       logger.warn({ err }, "No se pudieron cargar las casas del socket");
     }
@@ -54,11 +54,38 @@ export function iniciarSocket(server: http.Server): Server {
   return io;
 }
 
-/** Eventos que ven los miembros de la casa, los guardias y los admins. */
+/** Rooms de casa (miembros) y de barrio (guardias de barrios con guardia) que corresponden al usuario. */
+async function roomsDeseadas(usuarioId: number, rol: string): Promise<Set<string>> {
+  const membresias = await prisma.casaMiembro.findMany({ where: { usuarioId }, select: { casaId: true } });
+  const rooms = new Set(membresias.map((m) => roomCasa(m.casaId)));
+  if (rol === "GUARDIA") (await barriosVisiblesDeGuardia(usuarioId)).forEach((b) => rooms.add(roomBarrio(b)));
+  return rooms;
+}
+
+// Los eventos de cada casa salen en orden aunque haya que consultar su barrio
+const colasEmision = new Map<number, Promise<void>>();
+
+/** Eventos que ven los miembros de la casa, los guardias de su barrio (si tiene guardia) y los admins. */
 export function emitirCasa(casaId: number | null | undefined, evento: string, datos: unknown) {
   if (!io) return;
-  const destino = casaId ? io.to(roomCasa(casaId)).to("guardias").to("admins") : io.to("guardias").to("admins");
-  destino.emit(evento, datos);
+  const servidor = io;
+  if (!casaId) {
+    servidor.to("admins").emit(evento, datos);
+    return;
+  }
+  const previa = colasEmision.get(casaId) ?? Promise.resolve();
+  const siguiente = previa
+    .then(async () => {
+      const barrioId = await barrioConGuardiaDeCasa(casaId);
+      let destino = servidor.to(roomCasa(casaId)).to("admins");
+      if (barrioId) destino = destino.to(roomBarrio(barrioId));
+      destino.emit(evento, datos);
+    })
+    .catch((err) => logger.error({ err, casaId, evento }, "No se pudo emitir el evento de la casa"));
+  colasEmision.set(casaId, siguiente);
+  void siguiente.finally(() => {
+    if (colasEmision.get(casaId) === siguiente) colasEmision.delete(casaId);
+  });
 }
 
 /** Solo miembros de la casa y admins (ej. progreso de vinculación). */
@@ -67,16 +94,23 @@ export function emitirMiembros(casaId: number, evento: string, datos: unknown) {
   io.to(roomCasa(casaId)).to("admins").emit(evento, datos);
 }
 
-/** Cuando cambian las casas de un usuario, actualiza las rooms de sus sockets abiertos. */
+/** Cuando cambian las casas o los barrios de un usuario, actualiza las rooms de sus sockets abiertos. */
 export async function refrescarRoomsUsuario(usuarioId: number) {
   if (!io) return;
-  const membresias = await prisma.casaMiembro.findMany({ where: { usuarioId }, select: { casaId: true } });
-  const deseadas = new Set(membresias.map((m) => roomCasa(m.casaId)));
+  const usuario = await prisma.usuario.findUnique({ where: { id: usuarioId }, select: { rol: true } });
+  if (!usuario) return;
+  const deseadas = await roomsDeseadas(usuarioId, usuario.rol);
   const sockets = await io.in(roomUsuario(usuarioId)).fetchSockets();
   for (const s of sockets) {
-    for (const r of s.rooms) if (r.startsWith("casa:") && !deseadas.has(r)) s.leave(r);
+    for (const r of s.rooms) if ((r.startsWith("casa:") || r.startsWith("barrio:")) && !deseadas.has(r)) s.leave(r);
     deseadas.forEach((r) => s.join(r));
   }
+}
+
+/** Al prender/apagar la guardia de un barrio o cambiar sus guardias. */
+export async function refrescarRoomsBarrio(barrioId: number) {
+  const guardias = await prisma.guardiaBarrio.findMany({ where: { barrioId }, select: { usuarioId: true } });
+  await Promise.all(guardias.map((g) => refrescarRoomsUsuario(g.usuarioId)));
 }
 
 /** Corta los sockets de un usuario (desactivado, cambio de clave, logout global). */

@@ -9,6 +9,9 @@ import { autenticar, usuarioDe } from "../../core/auth/middleware";
 import { verificarAccesoDispositivo } from "../../core/auth/acceso";
 import { enviarComando } from "../../core/mqtt/comandos";
 import { desvincular, dispositivoPublico, provisionar } from "./dispositivo.service";
+import { esquemaNombreDispositivo } from "../casas/casas.routes";
+import { prisma } from "../../core/prisma";
+import { emitirEstadoCasa } from "../alarma/alarma.service";
 
 export const dispositivosRouter = Router();
 
@@ -17,7 +20,7 @@ const TOKEN_CONFIG_SEG = 600;
 const limiteProvision = rateLimit({
   windowMs: 60_000,
   limit: config.esTest ? 1000 : 10,
-  standardHeaders: "draft-7",
+  standardHeaders: false, // respuesta liviana para el ESP32
   legacyHeaders: false,
   message: { error: "demasiados_intentos", mensaje: "Demasiados intentos" },
 });
@@ -42,6 +45,15 @@ dispositivosRouter.get("/:id", async (req, res) => {
   res.json(dispositivoPublico(disp));
 });
 
+/** Cambiar el nombre ("Puerta trasera"): dueño o admin. */
+dispositivosRouter.put("/:id", async (req, res) => {
+  const disp = await verificarAccesoDispositivo(usuarioDe(req), leerId(req.params.id), { gestion: true });
+  const { nombre } = z.object({ nombre: esquemaNombreDispositivo }).parse(req.body);
+  const actualizado = await prisma.dispositivo.update({ where: { id: disp.id }, data: { nombre } });
+  await emitirEstadoCasa(actualizado.casaId);
+  res.json(dispositivoPublico(actualizado));
+});
+
 /** Token para reconfigurar el WiFi por Bluetooth una placa ya vinculada. */
 dispositivosRouter.post("/:id/token-config", async (req, res) => {
   const disp = await verificarAccesoDispositivo(usuarioDe(req), leerId(req.params.id), { gestion: true });
@@ -58,6 +70,19 @@ dispositivosRouter.post("/:id/modo-config", async (req, res) => {
     return res.status(202).json({
       ok: false,
       mensaje: "La placa no respondió. Mantené apretado su botón 5 segundos para activar el Bluetooth.",
+    });
+  }
+  res.json({ ok: true });
+});
+
+/** Reinicia la placa sin borrar nada (si quedó trabada o con la conexión inestable). */
+dispositivosRouter.post("/:id/reiniciar", async (req, res) => {
+  const disp = await verificarAccesoDispositivo(usuarioDe(req), leerId(req.params.id), { gestion: true });
+  const r = await enviarComando(disp.deviceId, "reboot");
+  if (!r?.ok) {
+    return res.status(202).json({
+      ok: false,
+      mensaje: "El dispositivo no está conectado, así que no se puede reiniciar desde la app. Desenchufalo, esperá 5 segundos y volvé a enchufarlo.",
     });
   }
   res.json({ ok: true });
