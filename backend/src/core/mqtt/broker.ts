@@ -2,7 +2,7 @@ import http from "http";
 import net from "net";
 import { Duplex } from "stream";
 import Aedes, { AuthenticateError, Client, createBroker } from "aedes";
-import { createWebSocketStream, WebSocketServer } from "ws";
+import { WebSocket, WebSocketServer } from "ws";
 import { config } from "../config";
 import { logger } from "../logger";
 import { prisma } from "../prisma";
@@ -99,6 +99,41 @@ export function crearBroker(): Aedes {
   return broker;
 }
 
+/**
+ * Stream para aedes sobre un WebSocket. aedes escribe cada paquete MQTT en varios pedazos (encabezado,
+ * largo, cuerpo...) y cada `write` sería un mensaje WebSocket aparte: el cliente MQTT del ESP32 no
+ * rearma paquetes partidos entre mensajes. Se junta todo lo escrito en el mismo ciclo y se manda junto.
+ */
+export function streamMqttWs(ws: WebSocket): Duplex {
+  let pendientes: Buffer[] = [];
+  const stream = new Duplex({
+    read() {},
+    write(chunk: Buffer, _enc, cb) {
+      pendientes.push(chunk);
+      if (pendientes.length === 1) {
+        setImmediate(() => {
+          const datos = Buffer.concat(pendientes);
+          pendientes = [];
+          if (ws.readyState === ws.OPEN) ws.send(datos);
+        });
+      }
+      cb();
+    },
+    final(cb) {
+      ws.close();
+      cb();
+    },
+    destroy(err, cb) {
+      ws.terminate();
+      cb(err);
+    },
+  });
+  ws.on("message", (datos: Buffer) => stream.push(datos));
+  ws.on("close", () => stream.push(null));
+  ws.on("error", (err) => stream.destroy(err));
+  return stream;
+}
+
 /** Monta el broker en el servidor HTTP (ruta /mqtt) y opcionalmente en TCP. */
 export function iniciarBroker(server: http.Server) {
   const b = broker ?? crearBroker();
@@ -106,7 +141,7 @@ export function iniciarBroker(server: http.Server) {
   server.on("upgrade", (req, socket, head) => {
     if (!req.url?.startsWith("/mqtt")) return; // lo maneja Socket.IO
     wss!.handleUpgrade(req, socket as Duplex & net.Socket, head, (ws) => {
-      b.handle(createWebSocketStream(ws), req);
+      b.handle(streamMqttWs(ws), req);
     });
   });
   if (config.MQTT_TCP_PORT) {

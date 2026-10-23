@@ -3,7 +3,9 @@ import { AddressInfo } from "net";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import mqtt, { MqttClient } from "mqtt";
 import { prisma } from "../src/core/prisma";
-import { cerrarBroker, crearBroker } from "../src/core/mqtt/broker";
+import http from "http";
+import { WebSocket, WebSocketServer } from "ws";
+import { cerrarBroker, crearBroker, streamMqttWs } from "../src/core/mqtt/broker";
 import { enviarComando } from "../src/core/mqtt/comandos";
 import { detenerManejadoresMqtt, iniciarManejadoresMqtt } from "../src/modules/dispositivos/dispositivo.mqtt";
 import { estadoCasa } from "../src/modules/alarma/alarma.service";
@@ -15,7 +17,9 @@ vi.mock("../src/core/notificaciones/sms", () => ({ enviarSms: vi.fn(async () => 
 const DEVICE = "A1B2C3D4E5F6";
 const OTRO = "B1B2C3D4E5F6";
 let server: net.Server;
+let servidorWs: http.Server;
 let url: string;
+let urlWs: string;
 let cred: { user: string; pass: string };
 let credOtro: { user: string; pass: string };
 const clientes: MqttClient[] = [];
@@ -48,6 +52,12 @@ beforeAll(async () => {
   server = net.createServer(broker.handle);
   await new Promise<void>((r) => server.listen(0, r));
   url = `mqtt://localhost:${(server.address() as AddressInfo).port}`;
+  // Igual que en producción (Render): MQTT por WebSocket
+  servidorWs = http.createServer();
+  const wss = new WebSocketServer({ server: servidorWs });
+  wss.on("connection", (ws) => broker.handle(streamMqttWs(ws)));
+  await new Promise<void>((r) => servidorWs.listen(0, r));
+  urlWs = `ws://localhost:${(servidorWs.address() as AddressInfo).port}`;
 });
 
 afterAll(async () => {
@@ -55,6 +65,33 @@ afterAll(async () => {
   await detenerManejadoresMqtt();
   await cerrarBroker();
   server.close();
+  servidorWs.close();
+});
+
+describe("MQTT por WebSocket (producción)", () => {
+  it("cada paquete llega entero en un solo mensaje (el ESP32 no rearma paquetes partidos)", async () => {
+    const ws = new WebSocket(urlWs, ["mqtt"]);
+    await new Promise((r) => ws.once("open", r));
+    const str = (b: Buffer) => Buffer.concat([Buffer.from([b.length >> 8, b.length & 255]), b]);
+    const vh = Buffer.concat([str(Buffer.from("MQTT")), Buffer.from([4, 0xc2, 0, 30])]);
+    const pl = Buffer.concat([str(Buffer.from(DEVICE)), str(Buffer.from(cred.user)), str(Buffer.from(cred.pass))]);
+    const recibido = new Promise<Buffer>((r) => ws.once("message", (d) => r(d as Buffer)));
+    ws.send(Buffer.concat([Buffer.from([0x10, vh.length + pl.length]), vh, pl]));
+    // CONNACK completo (4 bytes) y aceptado (código 0)
+    expect((await recibido).toString("hex")).toBe("20020000");
+    ws.close();
+  });
+
+  it("un cliente MQTT común se conecta por WebSocket", async () => {
+    const c = await new Promise<MqttClient>((resolve, reject) => {
+      const x = mqtt.connect(urlWs, { clientId: DEVICE, username: cred.user, password: cred.pass, reconnectPeriod: 0, connectTimeout: 3000 });
+      clientes.push(x);
+      x.once("connect", () => resolve(x));
+      x.once("error", reject);
+    });
+    expect(c.connected).toBe(true);
+    c.end(true);
+  });
 });
 
 describe("broker MQTT", () => {
