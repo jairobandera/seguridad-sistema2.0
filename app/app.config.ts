@@ -34,7 +34,8 @@ const config: ExpoConfig = {
     // google-services.json (Firebase) es necesario para las push en Android (no hace falta para probar en local)
     ...(fs.existsSync("./google-services.json") ? { googleServicesFile: "./google-services.json" } : {}),
   },
-  web: { favicon: "./assets/favicon.png" },
+  // Panel web (admin/guardia) publicado como sitio estático: una sola página (Render reescribe todo a index.html)
+  web: { favicon: "./assets/favicon.png", output: "single" },
   plugins: [
     "expo-router",
     "expo-secure-store",

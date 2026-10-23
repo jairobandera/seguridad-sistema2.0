@@ -7,6 +7,14 @@
       "runtimeArgs": ["expo", "start", "--web", "--port", "8081"],
       "cwd": "app",
       "port": 8081
+    },
+    {
+      "name": "app-web-dist",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["--yes", "serve@14.2.4", "dist", "--single", "--listen", "8095"],
+      "cwd": "app",
+      "port": 8095,
+      "autoPort": false
     }
   ]
 }

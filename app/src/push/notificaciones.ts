@@ -37,10 +37,12 @@ async function crearCanales() {
   });
 }
 
-export type ResultadoPush = "ok" | "sin_permiso" | "emulador" | "sin_proyecto" | "error";
+export type ResultadoPush = "ok" | "sin_permiso" | "emulador" | "sin_proyecto" | "web" | "error";
 
 /** Pide permiso, obtiene el token de Expo y lo registra en el backend. */
 export async function registrarPush(): Promise<ResultadoPush> {
+  // En la web no hay push de Expo: las alarmas llegan por WebSocket con la página abierta
+  if (Platform.OS === "web") return "web";
   try {
     await crearCanales();
     if (!Device.isDevice) return "emulador";

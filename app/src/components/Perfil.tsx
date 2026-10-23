@@ -40,6 +40,7 @@ export function Perfil() {
       }
       if (r === "sin_proyecto") return setAviso("Las notificaciones push se activan cuando la app está compilada con EAS (ver la guía).");
       if (r === "emulador") return setAviso("Las notificaciones push solo funcionan en un celular real.");
+      if (r === "web") return setAviso("En la web no hay notificaciones push: las alarmas suenan con la página abierta.");
       await yo.pruebaPush();
       setAviso("Te mandamos una notificación de prueba");
     } catch (e) {
