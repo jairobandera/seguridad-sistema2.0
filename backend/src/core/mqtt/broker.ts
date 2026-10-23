@@ -106,25 +106,30 @@ export function crearBroker(): Aedes {
  */
 export function streamMqttWs(ws: WebSocket): Duplex {
   let pendientes: Buffer[] = [];
+  const enviar = () => {
+    if (!pendientes.length) return;
+    const datos = Buffer.concat(pendientes);
+    pendientes = [];
+    if (ws.readyState === ws.OPEN) ws.send(datos);
+  };
   const stream = new Duplex({
     read() {},
     write(chunk: Buffer, _enc, cb) {
       pendientes.push(chunk);
-      if (pendientes.length === 1) {
-        setImmediate(() => {
-          const datos = Buffer.concat(pendientes);
-          pendientes = [];
-          if (ws.readyState === ws.OPEN) ws.send(datos);
-        });
-      }
+      if (pendientes.length === 1) setImmediate(enviar);
       cb();
     },
     final(cb) {
+      // Ej. CONNACK de rechazo seguido del cierre: primero se manda lo pendiente
+      enviar();
       ws.close();
       cb();
     },
     destroy(err, cb) {
-      ws.terminate();
+      // aedes destruye la conexión al rechazar: se manda lo pendiente y se cierra prolijo
+      enviar();
+      if (ws.readyState === ws.OPEN) ws.close();
+      else ws.terminate();
       cb(err);
     },
   });

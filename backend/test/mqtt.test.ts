@@ -82,6 +82,20 @@ describe("MQTT por WebSocket (producción)", () => {
     ws.close();
   });
 
+  it("si rechaza la clave, el CONNACK de rechazo llega antes de cerrar (la placa lo cuenta)", async () => {
+    const ws = new WebSocket(urlWs, ["mqtt"]);
+    await new Promise((r) => ws.once("open", r));
+    const str = (b: Buffer) => Buffer.concat([Buffer.from([b.length >> 8, b.length & 255]), b]);
+    const vh = Buffer.concat([str(Buffer.from("MQTT")), Buffer.from([4, 0xc2, 0, 30])]);
+    const pl = Buffer.concat([str(Buffer.from(DEVICE)), str(Buffer.from(cred.user)), str(Buffer.from("mala"))]);
+    const recibido = new Promise<Buffer | null>((r) => {
+      ws.once("message", (d) => r(d as Buffer));
+      ws.once("close", () => r(null));
+    });
+    ws.send(Buffer.concat([Buffer.from([0x10, vh.length + pl.length]), vh, pl]));
+    expect((await recibido)?.toString("hex")).toBe("20020004");
+  });
+
   it("un cliente MQTT común se conecta por WebSocket", async () => {
     const c = await new Promise<MqttClient>((resolve, reject) => {
       const x = mqtt.connect(urlWs, { clientId: DEVICE, username: cred.user, password: cred.pass, reconnectPeriod: 0, connectTimeout: 3000 });
