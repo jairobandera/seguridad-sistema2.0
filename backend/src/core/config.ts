@@ -24,7 +24,8 @@ const esquema = z.object({
 
   // Broker MQTT embebido. Las placas se conectan por WebSocket en {API}/mqtt.
   // En desarrollo se puede abrir además un puerto TCP (ej. 1883) para la red local.
-  MQTT_TCP_PORT: z.coerce.number().int().positive().optional(),
+  // Vacío = sin TCP (en Render no se define: solo entra HTTPS/WSS)
+  MQTT_TCP_PORT: z.preprocess((v) => (v === "" ? undefined : v), z.coerce.number().int().positive().optional()),
   // URL que se le entrega a la placa al vincularse (ej. wss://mi-api.onrender.com/mqtt o mqtt://192.168.1.10:1883)
   MQTT_PUBLIC_URL: z.string().default("ws://localhost:3000/mqtt"),
   // Segundos de espera antes de declarar offline una placa que se desconectó (evita falsas alarmas por cortes breves)

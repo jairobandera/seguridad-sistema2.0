@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "prisma generate && tsc -p tsconfig.build.json",
-    "start": "node scripts/escribir-ca.js && prisma migrate deploy && node dist/server.js",
+    "start": "node scripts/escribir-ca.js && prisma migrate deploy && tsx prisma/seed.ts --opcional && node dist/server.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "seed": "tsx prisma/seed.ts",

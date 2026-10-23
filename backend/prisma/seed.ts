@@ -1,6 +1,7 @@
 /**
  * Crea el administrador inicial a partir de SEED_ADMIN_EMAIL y SEED_ADMIN_PASSWORD.
- * Es idempotente: si el usuario ya existe no lo toca.
+ * Es idempotente: si el usuario ya existe no lo toca. `pnpm start` lo corre con `--opcional` en cada arranque
+ * (así en Render el admin se crea solo, sin usar la Shell).
  *
  * Con `--demo` crea además datos de prueba: un barrio con guardia (casa de Ana y Juan), un barrio
  * sin guardia (casa de Lucía) y una casa individual (Pedro).
@@ -29,6 +30,11 @@ async function main() {
   const email = process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase();
   const password = process.env.SEED_ADMIN_PASSWORD;
   if (!email || !password || password.length < 8) {
+    // Al arrancar en producción (`pnpm start`) es opcional: si no están, no se crea nada
+    if (process.argv.includes("--opcional")) {
+      console.log("SEED_ADMIN_EMAIL/SEED_ADMIN_PASSWORD no definidos: no se crea el administrador");
+      return;
+    }
     throw new Error("Definí SEED_ADMIN_EMAIL y SEED_ADMIN_PASSWORD (mínimo 8 caracteres) en el .env");
   }
   await usuario(email, { nombre: "Administrador", apellido: "General", rol: "ADMIN" }, password);
