@@ -10,6 +10,15 @@ export function sha256(texto: string): string {
 }
 
 /** Contraseña temporal legible (sin caracteres ambiguos). */
+/** Código corto para dictar o escribir a mano: sin 0/O ni 1/I/L (ej. "B-7K2QX9"). */
+export function codigoLegible(prefijo: string, largo = 6): string {
+  const alfabeto = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  const bytes = crypto.randomBytes(largo);
+  let out = "";
+  for (let i = 0; i < largo; i++) out += alfabeto[bytes[i] % alfabeto.length];
+  return `${prefijo}-${out}`;
+}
+
 export function passwordTemporal(largo = 10): string {
   const alfabeto = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
   const bytes = crypto.randomBytes(largo);

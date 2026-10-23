@@ -11,6 +11,7 @@ import { cambiarAlarma, estadoCasa } from "../alarma/alarma.service";
 import { eventoDTO, incluirEvento } from "../eventos/evento.dto";
 import { esquemaEmail } from "../usuarios/usuario.publico";
 import { aplanarBarrio } from "../barrios/barrio.service";
+import { codigoUnico } from "../auth/registro.service";
 
 export const casasRouter = Router();
 
@@ -27,7 +28,14 @@ const datosCasa = {
   barrio: { select: { nombre: true } },
   alarmaArmada: true,
   retardoEntradaSeg: true,
+  codigoFamilia: true,
 } as const;
+
+/** El código para sumar familiares solo lo ve el dueño. */
+const casaParaUsuario = <T extends { codigoFamilia: string | null; barrio: { nombre: string } | null }>(c: T, rolCasa: string | null) => {
+  const { codigoFamilia, ...resto } = aplanarBarrio(c);
+  return { ...resto, codigoFamilia: rolCasa === "DUENO" ? codigoFamilia : null };
+};
 
 /** Casas del usuario logueado con su estado en vivo. */
 casasRouter.get("/mias", async (req, res) => {
@@ -38,7 +46,7 @@ casasRouter.get("/mias", async (req, res) => {
     orderBy: { casaId: "asc" },
   });
   const casas = await Promise.all(
-    membresias.map(async (m) => ({ ...aplanarBarrio(m.casa), rolCasa: m.rol, estado: await estadoCasa(m.casaId) })),
+    membresias.map(async (m) => ({ ...casaParaUsuario(m.casa, m.rol), rolCasa: m.rol, estado: await estadoCasa(m.casaId) })),
   );
   res.json(casas);
 });
@@ -48,7 +56,7 @@ casasRouter.get("/:id", async (req, res) => {
   const id = leerId(req.params.id);
   const { rolCasa } = await verificarAccesoCasa(u, id);
   const casa = await prisma.casa.findUniqueOrThrow({ where: { id }, select: datosCasa });
-  res.json({ ...aplanarBarrio(casa), rolCasa, estado: await estadoCasa(id) });
+  res.json({ ...casaParaUsuario(casa, rolCasa), rolCasa, estado: await estadoCasa(id) });
 });
 
 casasRouter.put("/:id/alarma", async (req, res) => {
@@ -131,6 +139,16 @@ casasRouter.delete("/:id/miembros/:usuarioId", async (req, res) => {
 // Vinculación de dispositivos (una casa puede tener varios)
 // ---------------------------------------------------------------------------
 export const esquemaNombreDispositivo = z.string().trim().min(1, "Poné un nombre").max(40, "Máximo 40 caracteres");
+
+/** Código para que los familiares se registren solos en esta casa. Regenerarlo invalida el anterior. */
+casasRouter.post("/:id/codigo-familia", async (req, res) => {
+  const u = usuarioDe(req);
+  const id = leerId(req.params.id);
+  await verificarAccesoCasa(u, id, { soloDueno: true });
+  const codigoFamilia = await codigoUnico("F", async (cod) => !!(await prisma.casa.findUnique({ where: { codigoFamilia: cod } })));
+  await prisma.casa.update({ where: { id }, data: { codigoFamilia } });
+  res.json({ codigoFamilia });
+});
 
 casasRouter.post("/:id/codigo-vinculacion", async (req, res) => {
   const u = usuarioDe(req);

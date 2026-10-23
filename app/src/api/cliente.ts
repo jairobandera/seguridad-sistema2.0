@@ -106,6 +106,10 @@ export async function apiConEstado<T>(ruta: string, opciones: Opciones = {}): Pr
   }
   const cuerpo = await leer(resp);
   if (!resp.ok) throw errorDe(resp, cuerpo);
+  // OK pero sin JSON: casi siempre es la dirección del servidor mal configurada (le habla a otra página)
+  if (cuerpo === null && resp.status !== 204) {
+    throw new ApiError(resp.status, "respuesta_invalida", "El servidor respondió algo inesperado. Revisá la dirección del servidor.");
+  }
   return { status: resp.status, datos: cuerpo as T };
 }
 

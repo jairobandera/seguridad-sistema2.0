@@ -79,6 +79,8 @@ export interface Casa {
   retardoEntradaSeg: number;
   rolCasa: RolCasa | null;
   estado: EstadoCasa | null;
+  /** Código para que se registren familiares (solo lo recibe el dueño) */
+  codigoFamilia: string | null;
 }
 
 export interface Evento {
@@ -182,6 +184,8 @@ export interface Barrio {
   nombre: string;
   tieneGuardia: boolean;
   activo: boolean;
+  /** Código que se les da a los vecinos para registrarse en el barrio */
+  codigoRegistro: string | null;
 }
 
 export interface ResumenCasas {

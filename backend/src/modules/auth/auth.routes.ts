@@ -10,6 +10,7 @@ import { autenticar, usuarioDe } from "../../core/auth/middleware";
 import { desconectarUsuario } from "../../core/socket";
 import { esquemaEmail, esquemaPassword, hashPassword } from "../usuarios/usuario.publico";
 import { crearSesion, invalidarSesiones, renovarSesion } from "./auth.service";
+import { esquemaRegistro, registrar } from "./registro.service";
 
 export const authRouter = Router();
 
@@ -38,6 +39,21 @@ authRouter.post("/login", limiteLogin, async (req, res) => {
     throw new HttpError(401, "credenciales_invalidas", "Email o contraseña incorrectos");
   }
   res.json(await crearSesion(usuario.id, datosCliente(req)));
+});
+
+// Registro abierto: límite por IP para frenar cuentas masivas
+const limiteRegistro = rateLimit({
+  windowMs: 10 * 60_000,
+  limit: config.esTest ? 1000 : 10,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { error: "demasiados_intentos", mensaje: "Demasiados registros desde esta conexión. Probá más tarde." },
+});
+
+/** El cliente crea su cuenta (con código de barrio, de familia o sin código) y queda logueado. */
+authRouter.post("/registro", limiteRegistro, async (req, res) => {
+  const usuarioId = await registrar(esquemaRegistro.parse(req.body));
+  res.status(201).json(await crearSesion(usuarioId, datosCliente(req)));
 });
 
 authRouter.post("/refresh", async (req, res) => {

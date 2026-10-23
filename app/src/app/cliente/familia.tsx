@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { ScrollView } from "react-native";
-import { Appbar, Button, Card, Dialog, HelperText, IconButton, List, Portal, Text, useTheme } from "react-native-paper";
+import { Appbar, Button, Card, Dialog, HelperText, IconButton, List, Portal, Snackbar, Text, useTheme } from "react-native-paper";
 import { Campo } from "@/components/Campo";
+import { CodigoCompartir } from "@/components/CodigoCompartir";
 import { router } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { casas } from "@/api/endpoints";
@@ -23,6 +24,7 @@ export default function Familia() {
   const [email, setEmail] = useState("");
   const [quitando, setQuitando] = useState<Miembro | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
 
   const agregar = useMutation({
     mutationFn: () => casas.agregarMiembro(actual!.id, email.trim()),
@@ -70,9 +72,28 @@ export default function Familia() {
             ))}
           </Card>
           {esDueno ? (
-            <Button mode="contained" icon="account-plus" onPress={() => { setError(null); setAgregando(true); }}>
-              Agregar familiar
-            </Button>
+            <>
+              <Card>
+                <Card.Content>
+                  <CodigoCompartir
+                    titulo="Código para sumar familiares"
+                    codigo={actual.codigoFamilia}
+                    mensaje={(c) => `Sumate a la alarma de casa: bajá la app Seguridad Hogar, tocá "Crear cuenta" y poné el código ${c}`}
+                    generar={async () => {
+                      await casas.codigoFamilia(actual.id);
+                      await qc.invalidateQueries({ queryKey: ["casas"] });
+                    }}
+                    avisar={setAviso}
+                  />
+                  <Text variant="bodySmall" style={{ marginTop: 8, color: tema.colors.onSurfaceVariant }}>
+                    Quien se registre con este código queda como familiar de tu casa.
+                  </Text>
+                </Card.Content>
+              </Card>
+              <Button mode="outlined" icon="account-plus" onPress={() => { setError(null); setAgregando(true); }}>
+                Agregar por email (si ya tiene cuenta)
+              </Button>
+            </>
           ) : null}
         </ScrollView>
       )}
@@ -81,7 +102,7 @@ export default function Familia() {
         <Dialog visible={agregando} onDismiss={() => setAgregando(false)}>
           <Dialog.Title>Agregar familiar</Dialog.Title>
           <Dialog.Content>
-            <Text style={{ marginBottom: 12 }}>La persona tiene que tener una cuenta. Si no la tiene, pedile a la administración que la cree.</Text>
+            <Text style={{ marginBottom: 12 }}>La persona tiene que tener una cuenta. Si no la tiene, pasale el código de familia.</Text>
             <Campo label="Email de la persona" mode="outlined" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
             <HelperText type="error" visible={!!error}>
               {error}
@@ -107,6 +128,9 @@ export default function Familia() {
           </Dialog.Actions>
         </Dialog>
       </Portal>
+      <Snackbar visible={!!aviso} onDismiss={() => setAviso(null)} duration={3500}>
+        {aviso}
+      </Snackbar>
     </>
   );
 }

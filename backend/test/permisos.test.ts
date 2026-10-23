@@ -198,3 +198,68 @@ describe("guardia", () => {
     expect((await request(app).get("/api/guardia/casas").set(auth(e.t.guardia))).status).toBe(200);
   });
 });
+
+describe("registro desde la app", () => {
+  let n = 0;
+  const datos = (extra: Record<string, unknown> = {}) => ({
+    nombre: "Nuevo",
+    apellido: "Vecino",
+    email: `registro${++n}-${Date.now()}@test.com`,
+    password: "ClaveSegura1",
+    ...extra,
+  });
+  const direccion = { calle: "Los Pinos", numero: "10" };
+  const registrar = (d: Record<string, unknown>) => request(app).post("/auth/registro").send(d);
+  const misCasas = async (token: string) => (await request(app).get("/api/casas/mias").set(auth(token))).body;
+
+  it("sin código crea una casa individual a su nombre y queda logueado", async () => {
+    const r = await registrar(datos({ direccion }));
+    expect(r.status).toBe(201);
+    expect(r.body.usuario.rol).toBe("CLIENTE");
+    const [casa] = await misCasas(r.body.accessToken);
+    expect(casa.paquete).toBe("INDIVIDUAL");
+    expect(casa.rolCasa).toBe("DUENO");
+    expect(casa.calle).toBe("Los Pinos");
+  });
+
+  it("pide la dirección, rechaza emails repetidos y códigos que no existen", async () => {
+    expect((await registrar(datos())).status).toBe(400);
+    const d = datos({ direccion });
+    expect((await registrar(d)).status).toBe(201);
+    expect((await registrar({ ...d, nombre: "Otro" })).status).toBe(409);
+    expect((await registrar(datos({ direccion, codigo: "B-NOEXISTE" }))).status).toBe(400);
+  });
+
+  it("con el código del barrio queda en ese barrio y el guardia ve su casa; regenerarlo invalida el anterior", async () => {
+    const g = await request(app).post(`/api/admin/barrios/${e.barrio.id}/codigo`).set(auth(e.t.admin));
+    const codigo: string = g.body.codigoRegistro;
+    expect(codigo).toMatch(/^B-[A-Z2-9]{6}$/);
+    expect((await request(app).post(`/api/admin/barrios/${e.barrio.id}/codigo`).set(auth(e.t.guardia))).status).toBe(403);
+
+    const r = await registrar(datos({ direccion: { ...direccion, numero: "77" }, codigo: codigo.toLowerCase() }));
+    expect(r.status).toBe(201);
+    const [casa] = await misCasas(r.body.accessToken);
+    expect(casa.paquete).toBe("BARRIO");
+    expect(casa.barrio).toBe(e.barrio.nombre);
+    const delGuardia = await request(app).get("/api/guardia/casas").set(auth(e.t.guardia));
+    expect(delGuardia.body.map((c: { id: number }) => c.id)).toContain(casa.id);
+
+    await request(app).post(`/api/admin/barrios/${e.barrio.id}/codigo`).set(auth(e.t.admin));
+    expect((await registrar(datos({ direccion, codigo }))).status).toBe(400);
+  });
+
+  it("con el código de familia se suma como familiar; solo el dueño lo genera y lo ve", async () => {
+    expect((await request(app).post(`/api/casas/${e.casa.id}/codigo-familia`).set(auth(e.t.familiar))).status).toBe(403);
+    const g = await request(app).post(`/api/casas/${e.casa.id}/codigo-familia`).set(auth(e.t.dueno));
+    expect(g.body.codigoFamilia).toMatch(/^F-[A-Z2-9]{6}$/);
+
+    const r = await registrar(datos({ codigo: g.body.codigoFamilia }));
+    expect(r.status).toBe(201);
+    const [casa] = await misCasas(r.body.accessToken);
+    expect(casa.id).toBe(e.casa.id);
+    expect(casa.rolCasa).toBe("FAMILIAR");
+    expect(casa.codigoFamilia).toBeNull();
+    const delDueno = (await misCasas(e.t.dueno)).find((c: { id: number }) => c.id === e.casa.id);
+    expect(delDueno.codigoFamilia).toBe(g.body.codigoFamilia);
+  });
+});

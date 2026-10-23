@@ -37,6 +37,16 @@ export const auth = {
     api<Sesion>("/auth/login", { metodo: "POST", cuerpo: { email, password }, sinAuth: true }),
   logout: (refreshToken: string | null, pushToken: string | null) =>
     api<void>("/auth/logout", { metodo: "POST", cuerpo: { refreshToken, pushToken }, sinAuth: true }),
+  /** Crear cuenta desde la app (con código de barrio "B-…", de familia "F-…" o sin código) */
+  registro: (d: {
+    nombre: string;
+    apellido: string;
+    email: string;
+    password: string;
+    telefono: string | null;
+    codigo: string | null;
+    direccion: { calle: string; numero: string; manzana: string | null } | null;
+  }) => api<Sesion>("/auth/registro", { metodo: "POST", cuerpo: d, sinAuth: true }),
   cambiarPassword: (actual: string, nueva: string) =>
     api<Sesion>("/auth/cambiar-password", { metodo: "POST", cuerpo: { actual, nueva } }),
 };
@@ -61,6 +71,7 @@ export const casas = {
   eventos: (id: number, cursor?: number) => api<Pagina<Evento>>(`/api/casas/${id}/eventos${qs({ cursor, limit: 25 })}`),
   miembros: (id: number) => api<Miembro[]>(`/api/casas/${id}/miembros`),
   agregarMiembro: (id: number, email: string) => api<Miembro>(`/api/casas/${id}/miembros`, { metodo: "POST", cuerpo: { email } }),
+  codigoFamilia: (id: number) => api<{ codigoFamilia: string }>(`/api/casas/${id}/codigo-familia`, { metodo: "POST" }),
   quitarMiembro: (id: number, usuarioId: number) => api<void>(`/api/casas/${id}/miembros/${usuarioId}`, { metodo: "DELETE" }),
   /** `nombre`: el que eligió el dueño para el dispositivo nuevo ("Puerta trasera"). */
   codigoVinculacion: (id: number, nombre?: string) =>
@@ -139,5 +150,6 @@ export const admin = {
   sistemas: () => api<Sistemas>("/api/admin/sistemas"),
   barrios: () => api<Barrio[]>("/api/admin/barrios"),
   crearBarrio: (d: { nombre: string; tieneGuardia: boolean }) => api<Barrio>("/api/admin/barrios", { metodo: "POST", cuerpo: d }),
+  codigoBarrio: (id: number) => api<Barrio>(`/api/admin/barrios/${id}/codigo`, { metodo: "POST" }),
   editarBarrio: (id: number, d: Partial<Omit<Barrio, "id">>) => api<Barrio>(`/api/admin/barrios/${id}`, { metodo: "PUT", cuerpo: d }),
 };

@@ -17,15 +17,15 @@
       "distribution": "internal",
       "android": { "buildType": "apk" },
       "env": {
-        "APP_VARIANT": "development",
-        "EXPO_PUBLIC_API_URL": "http://192.168.1.75:3000"
+        "APP_VARIANT": "production",
+        "EXPO_PUBLIC_API_URL": "https://seguridad-sistema2-0.onrender.com"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
         "APP_VARIANT": "production",
-        "EXPO_PUBLIC_API_URL": "https://CAMBIAR.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://seguridad-sistema2-0.onrender.com"
       }
     }
   },

@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "re
 import { Button, HelperText, Icon, Text, useTheme } from "react-native-paper";
 import { Campo } from "@/components/Campo";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { router } from "expo-router";
 import { auth } from "@/api/endpoints";
 import { mensajeDeError } from "@/api/cliente";
 import { iniciarSesion } from "@/sesion/acciones";
@@ -38,7 +39,7 @@ export default function Login() {
               Seguridad Hogar
             </Text>
             <Text variant="bodyMedium" style={{ color: tema.colors.onSurfaceVariant }}>
-              Ingresá con los datos que te dio la administración
+              Ingresá con tu email y contraseña
             </Text>
           </View>
 
@@ -67,6 +68,9 @@ export default function Login() {
           </HelperText>
           <Button mode="contained" onPress={entrar} loading={enviando} disabled={enviando} contentStyle={{ paddingVertical: 8 }}>
             Ingresar
+          </Button>
+          <Button style={{ marginTop: 12 }} onPress={() => router.push("/registro")}>
+            ¿No tenés cuenta? Creala
           </Button>
           <Text variant="bodySmall" style={[estilos.ayuda, { color: tema.colors.onSurfaceVariant }]}>
             ¿Olvidaste tu contraseña? Pedile a la administración que te la restablezca.

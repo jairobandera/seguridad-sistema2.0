@@ -14,6 +14,7 @@ import { invalidarSesiones } from "../auth/auth.service";
 import { dispositivoPublico } from "../dispositivos/dispositivo.service";
 import { esquemaEmail, esquemaPassword, esquemaTelefono, hashPassword, selectUsuarioPublico } from "../usuarios/usuario.publico";
 import { aplanarBarrio } from "../barrios/barrio.service";
+import { codigoUnico } from "../auth/registro.service";
 
 export const adminRouter = Router();
 adminRouter.use(requerirRol("ADMIN"));
@@ -169,7 +170,9 @@ function resumenCasas(casas: Prisma.CasaGetPayload<{ select: typeof selectCasaRe
 
 adminRouter.get("/barrios", async (_req, res) => {
   const barrios = await prisma.barrio.findMany({ orderBy: [{ activo: "desc" }, { nombre: "asc" }] });
-  res.json(barrios.map((b) => ({ id: b.id, nombre: b.nombre, tieneGuardia: b.tieneGuardia, activo: b.activo })));
+  res.json(
+    barrios.map((b) => ({ id: b.id, nombre: b.nombre, tieneGuardia: b.tieneGuardia, activo: b.activo, codigoRegistro: b.codigoRegistro })),
+  );
 });
 
 /** Todos los sistemas que se brindan: cada barrio con su resumen y las casas individuales. */
@@ -190,6 +193,7 @@ adminRouter.get("/sistemas", async (_req, res) => {
       nombre: b.nombre,
       tieneGuardia: b.tieneGuardia,
       activo: b.activo,
+      codigoRegistro: b.codigoRegistro,
       guardias: b.guardias
         .filter((g) => g.usuario.activo)
         .map((g) => ({ id: g.usuario.id, nombre: `${g.usuario.nombre} ${g.usuario.apellido}`.trim() })),
@@ -212,6 +216,14 @@ adminRouter.post("/barrios", async (req, res) => {
     throw new HttpError(409, "nombre_en_uso", "Ya existe un barrio con ese nombre");
   }
   res.status(201).json(await prisma.barrio.create({ data: d }));
+});
+
+/** Código para que los vecinos se registren solos en el barrio. Regenerarlo invalida el anterior. */
+adminRouter.post("/barrios/:id/codigo", async (req, res) => {
+  const id = leerId(req.params.id);
+  if (!(await prisma.barrio.findUnique({ where: { id } }))) throw noEncontrado("Barrio no encontrado");
+  const codigoRegistro = await codigoUnico("B", async (c) => !!(await prisma.barrio.findUnique({ where: { codigoRegistro: c } })));
+  res.json(await prisma.barrio.update({ where: { id }, data: { codigoRegistro } }));
 });
 
 adminRouter.put("/barrios/:id", async (req, res) => {

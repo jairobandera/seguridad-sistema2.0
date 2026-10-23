@@ -363,6 +363,13 @@ Firmware: compilar en Arduino IDE (✓) o con `arduino-cli compile --fqbn esp32:
 
 Sin guardia (casa individual o barrio con la guardia apagada) la alarma avisa al dueño y la familia por push y a los contactos por SMS.
 
+## Cuentas
+- Los clientes **se registran solos** desde la app ("¿No tenés cuenta? Creala"):
+  - **sin código** → se crea su casa **individual**;
+  - con el **código del barrio** (`B-…`, lo genera el admin en Sistemas) → casa nueva en ese barrio, con su guardia;
+  - con el **código de familia** (`F-…`, lo genera el dueño en Más → Familia) → se suma como familiar.
+- Guardias y admins los crea el admin (con clave temporal).
+
 ## Funciones
 - **Cliente (dueño/familiar)**: armar y desarmar manteniendo apretado, estado de la puerta y la placa en vivo,
   historial, configurar la placa por Bluetooth eligiendo la red WiFi de una lista, cambiar WiFi y restablecer,

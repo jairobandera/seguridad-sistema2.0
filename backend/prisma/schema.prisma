@@ -38,11 +38,13 @@ enum Paquete {
 }
 
 model Barrio {
-  id           Int      @id @default(autoincrement())
-  nombre       String   @unique
-  tieneGuardia Boolean  @default(true)
-  activo       Boolean  @default(true)
-  creadoEn     DateTime @default(now())
+  id             Int      @id @default(autoincrement())
+  nombre         String   @unique
+  tieneGuardia   Boolean  @default(true)
+  activo         Boolean  @default(true)
+  // Código que el admin comparte con los vecinos para registrarse en este barrio (ej. B-7K2QX9)
+  codigoRegistro String?  @unique
+  creadoEn       DateTime @default(now())
 
   casas    Casa[]
   guardias GuardiaBarrio[]
@@ -96,6 +98,8 @@ model Casa {
   barrio            Barrio?  @relation(fields: [barrioId], references: [id], onDelete: SetNull)
   alarmaArmada      Boolean  @default(false)
   retardoEntradaSeg Int      @default(0)
+  // Código que el dueño comparte para que se registren sus familiares (ej. F-4HT8WQ)
+  codigoFamilia     String?  @unique
   activa            Boolean  @default(true)
   creadoEn          DateTime @default(now())
 

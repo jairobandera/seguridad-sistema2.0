@@ -7,6 +7,7 @@ import { admin } from "@/api/endpoints";
 import { mensajeDeError } from "@/api/cliente";
 import type { Barrio, ResumenCasas } from "@/api/tipos";
 import { Campo } from "@/components/Campo";
+import { CodigoCompartir } from "@/components/CodigoCompartir";
 import { Cargando, ErrorReintentar } from "@/components/Estados";
 import { colores } from "@/tema";
 
@@ -88,6 +89,18 @@ export default function Sistemas() {
                 <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 8 }}>
                   <Text variant="bodyLarge">Guardia</Text>
                   <Switch value={b.tieneGuardia} onValueChange={(v) => cambiarGuardia(b, v)} />
+                </View>
+                <View style={{ marginTop: 8 }}>
+                  <CodigoCompartir
+                    titulo="Código para que los vecinos se registren"
+                    codigo={b.codigoRegistro}
+                    mensaje={(c) => `Para usar la alarma de ${b.nombre}, bajá la app Seguridad Hogar, tocá "Crear cuenta" y poné el código ${c}`}
+                    generar={async () => {
+                      await admin.codigoBarrio(b.id);
+                      refrescar();
+                    }}
+                    avisar={setAviso}
+                  />
                 </View>
               </Card.Content>
             </Card>

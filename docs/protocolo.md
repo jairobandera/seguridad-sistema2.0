@@ -192,6 +192,7 @@ Base: `API_URL`. Autenticación: `Authorization: Bearer <accessToken>` (15 min).
 | Método | Ruta | Cuerpo / Respuesta |
 |---|---|---|
 | POST | `/auth/login` | `{email,password}` → `{accessToken,refreshToken,usuario}` |
+| POST | `/auth/registro` | `{nombre,apellido,email,password,telefono?,codigo?,direccion?:{calle,numero,manzana?}}` → igual que login (201). Sin código: casa INDIVIDUAL propia (dueño). `B-…`: casa nueva en ese barrio (dueño). `F-…`: se suma como FAMILIAR a esa casa. Dirección obligatoria salvo con `F-`. Errores: `codigo_invalido` (400), `sin_direccion` (400), `email_en_uso` (409) |
 | POST | `/auth/refresh` | `{refreshToken}` → `{accessToken,refreshToken,usuario}` (rota) |
 | POST | `/auth/logout` | `{refreshToken, pushToken?}` → 204 |
 | POST | `/auth/cambiar-password` | `{actual,nueva}` (JWT) → 204 |
@@ -212,6 +213,7 @@ Base: `API_URL`. Autenticación: `Authorization: Bearer <accessToken>` (15 min).
 | GET | `/api/casas/:id/miembros` | `[{usuarioId,nombre,apellido,email,telefono,rol}]` |
 | POST | `/api/casas/:id/miembros` | `{email}` (DUEÑO) agrega un FAMILIAR existente |
 | DELETE | `/api/casas/:id/miembros/:usuarioId` | DUEÑO |
+| POST | `/api/casas/:id/codigo-familia` | DUEÑO → `{codigoFamilia}` (genera uno nuevo; el anterior deja de servir). `GET /mias` lo devuelve solo al dueño |
 | POST | `/api/casas/:id/codigo-vinculacion` | DUEÑO, `{nombre?}` (nombre del dispositivo nuevo, máx. 40) → `{codigo, expiraEn}`. Una casa puede tener varios dispositivos |
 | GET/POST | `/api/contactos` | propios, máx. 2, `{nombre,telefono(E.164),relacion?}` |
 | PUT/DELETE | `/api/contactos/:id` | propios |
@@ -241,7 +243,7 @@ Todo filtrado a las casas con guardia de los barrios que cubre el guardia (el ad
 `POST /api/admin/usuarios/:id/reset-password` → `{passwordTemporal}`,
 `GET /api/admin/casas?q=&paquete=&barrioId=`, `POST /api/admin/casas`, `GET|PUT /api/admin/casas/:id`
 (`paquete: BARRIO|INDIVIDUAL`, `barrioId` obligatorio con BARRIO y se ignora con INDIVIDUAL),
-`GET|POST /api/admin/barrios`, `PUT /api/admin/barrios/:id` `{nombre?, tieneGuardia?, activo?}`,
+`GET|POST /api/admin/barrios` (con `codigoRegistro`), `POST /api/admin/barrios/:id/codigo` (genera el código para que los vecinos se registren; el anterior deja de servir), `PUT /api/admin/barrios/:id` `{nombre?, tieneGuardia?, activo?}`,
 `GET /api/admin/sistemas` → `{barrios:[{...barrio, guardias, casas, casasArmadas, dispositivos, dispositivosOffline}], individuales:{...}}`,
 `PUT /api/admin/casas/:id/miembros` `{miembros:[{usuarioId,rol}]}`,
 `GET /api/admin/dispositivos?estado=`, `GET /api/admin/sistema`.
