@@ -12,7 +12,8 @@ import { conectarTiempoReal } from "@/realtime/socket";
 import { registrarPush } from "@/push/notificaciones";
 import { AlarmaOverlay } from "@/components/AlarmaOverlay";
 import { AvisoActualizacion } from "@/components/AvisoActualizacion";
-import { Cargando, ErrorReintentar } from "@/components/Estados";
+import { ErrorReintentar } from "@/components/Estados";
+import { Bienvenida } from "@/components/Bienvenida";
 import { rutaInicio } from "@/sesion/acciones";
 import { temaClaro, temaNavegacion, temaOscuro } from "@/tema";
 
@@ -34,6 +35,12 @@ function Sesion() {
   const refreshToken = useSesion((s) => s.refreshToken);
   const pushRegistrado = useRef(false);
   const [intento, setIntento] = useState(0);
+  // La bienvenida se ve al menos un momento, aunque la sesión cargue al instante
+  const [bienvenidaVista, setBienvenidaVista] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setBienvenidaVista(true), 900);
+    return () => clearTimeout(t);
+  }, []);
 
   // Al abrir la app: si hay sesión guardada, se renueva (trae el usuario actualizado)
   useEffect(() => {
@@ -72,7 +79,7 @@ function Sesion() {
     return () => sub.remove();
   }, []);
 
-  if (cargando) return <Cargando texto="Cargando..." />;
+  if (cargando || !bienvenidaVista) return <Bienvenida />;
   // Hay sesión guardada pero no se pudo renovar (sin internet o servidor caído)
   if (!usuario && refreshToken) {
     return (

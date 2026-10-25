@@ -42,8 +42,15 @@ const config: ExpoConfig = {
     "expo-secure-store",
     [
       "expo-splash-screen",
-      // Logo de GuardiEl sobre blanco (en modo oscuro también: el logo tiene letras oscuras)
-      { image: "./assets/splash-icon.png", imageWidth: 240, resizeMode: "contain", backgroundColor: "#FFFFFF", dark: { backgroundColor: "#FFFFFF" } },
+      // Solo el azul de la marca (Android 12+ recorta la imagen en un círculo): enseguida aparece la bienvenida
+      // con la palabra GuardiEl (src/components/Bienvenida.tsx), sobre el mismo azul.
+      {
+        image: "./assets/splash-vacio.png",
+        imageWidth: 1,
+        resizeMode: "contain",
+        backgroundColor: "#0B3D91",
+        dark: { image: "./assets/splash-vacio.png", backgroundColor: "#0B3D91" },
+      },
     ],
     "expo-audio",
     [
