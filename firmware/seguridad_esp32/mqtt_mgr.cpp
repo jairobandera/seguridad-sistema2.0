@@ -36,6 +36,7 @@ void alEvento(void*, esp_event_base_t, int32_t id, void* datos) {
       mqttmgr::Comando c = {};
       strlcpy(c.id, doc["id"] | "", sizeof(c.id));
       strlcpy(c.cmd, doc["cmd"] | "", sizeof(c.cmd));
+      c.activo = doc["activo"].is<bool>() ? (doc["activo"].as<bool>() ? 1 : 0) : -1;
       xQueueSend(colaComandos, &c, 0);
       break;
     }

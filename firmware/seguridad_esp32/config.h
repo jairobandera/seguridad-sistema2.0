@@ -48,6 +48,10 @@
 #define MQTT_KEEPALIVE_SEG 30
 #define MQTT_RECHAZOS_DESVINCULAR 20                // CONNACK "no autorizado" seguidos (~2 min) -> se considera desvinculada
 
+// Hibernación con la alarma desarmada (ver energia.h)
+#define CPU_MHZ_NORMAL 240
+#define CPU_MHZ_AHORRO 80
+
 #define COLA_MAX_EVENTOS 32
 #define ZONA_HORARIA "<-03>3"                       // Argentina / Uruguay (UTC-3)
 

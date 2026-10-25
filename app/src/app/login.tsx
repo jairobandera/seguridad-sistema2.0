@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "react-native";
-import { Button, HelperText, Icon, Text, useTheme } from "react-native-paper";
+import { Button, HelperText, Text, useTheme } from "react-native-paper";
+import { Marca } from "@/components/Marca";
 import { Campo } from "@/components/Campo";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -34,13 +35,7 @@ export default function Login() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView contentContainerStyle={estilos.contenido} keyboardShouldPersistTaps="handled">
           <View style={estilos.logo}>
-            <Icon source="shield-home" size={72} color={tema.colors.primary} />
-            <Text variant="headlineMedium" style={{ fontWeight: "700", marginTop: 8 }}>
-              Seguridad Hogar
-            </Text>
-            <Text variant="bodyMedium" style={{ color: tema.colors.onSurfaceVariant }}>
-              Ingresá con tu email y contraseña
-            </Text>
+            <Marca tamano={112} lema="Tu casa protegida, en tu celular" />
           </View>
 
           <Campo
@@ -83,6 +78,6 @@ export default function Login() {
 
 const estilos = StyleSheet.create({
   contenido: { flexGrow: 1, justifyContent: "center", padding: 24 },
-  logo: { alignItems: "center", marginBottom: 32 },
+  logo: { alignItems: "center", marginBottom: 36 },
   ayuda: { textAlign: "center", marginTop: 24 },
 });

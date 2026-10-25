@@ -78,7 +78,7 @@ export default function Familia() {
                   <CodigoCompartir
                     titulo="Código para sumar familiares"
                     codigo={actual.codigoFamilia}
-                    mensaje={(c) => `Sumate a la alarma de casa: bajá la app Seguridad Hogar, tocá "Crear cuenta" y poné el código ${c}`}
+                    mensaje={(c) => `Sumate a la alarma de casa: bajá la app GuardiEl, tocá "Crear cuenta" y poné el código ${c}`}
                     generar={async () => {
                       await casas.codigoFamilia(actual.id);
                       await qc.invalidateQueries({ queryKey: ["casas"] });

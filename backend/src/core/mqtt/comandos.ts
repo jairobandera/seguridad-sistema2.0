@@ -2,7 +2,8 @@ import crypto from "crypto";
 import { logger } from "../logger";
 import { placaConectada, publicarComando } from "./broker";
 
-export type Comando = "factory_reset" | "open_ble" | "reboot" | "ping";
+// "ahorro": hibernación con la alarma desarmada ({ activo: boolean }, ver firmware/energia.h)
+export type Comando = "factory_reset" | "open_ble" | "reboot" | "ping" | "ahorro";
 
 interface Respuesta {
   ok: boolean;
@@ -15,7 +16,12 @@ const pendientes = new Map<string, (r: Respuesta) => void>();
  * Manda un comando a la placa y espera su ACK.
  * Devuelve null si la placa no está conectada o no respondió a tiempo.
  */
-export async function enviarComando(deviceId: string, cmd: Comando, timeoutMs = 10_000): Promise<Respuesta | null> {
+export async function enviarComando(
+  deviceId: string,
+  cmd: Comando,
+  timeoutMs = 10_000,
+  datos: Record<string, unknown> = {},
+): Promise<Respuesta | null> {
   if (!placaConectada(deviceId)) return null;
   const id = crypto.randomUUID();
   const espera = new Promise<Respuesta | null>((resolve) => {
@@ -30,7 +36,7 @@ export async function enviarComando(deviceId: string, cmd: Comando, timeoutMs = 
     });
   });
   try {
-    await publicarComando(deviceId, { id, cmd });
+    await publicarComando(deviceId, { ...datos, id, cmd });
   } catch (err) {
     logger.error({ err, deviceId, cmd }, "No se pudo publicar el comando");
     pendientes.get(id)?.({ ok: false, error: "publicacion" });

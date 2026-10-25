@@ -41,7 +41,7 @@ export default function CasaGuardiaDetalle() {
       ) : (
         <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }} refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={() => void q.refetch()} />}>
           <View style={{ flexDirection: "row", gap: 8 }}>
-            <Indicador icono={c.estado?.alarmaArmada ? "shield-lock" : "shield-off-outline"} titulo="Alarma" valor={c.estado?.alarmaArmada ? "Armada" : "Desarmada"} color={c.estado?.alarmaArmada ? colores.ok : colores.apagado} />
+            <Indicador icono={c.estado?.alarmaArmada ? "shield-lock" : "shield-off-outline"} titulo="Alarma" valor={c.estado?.alarmaArmada ? "Armada" : "Desarmada"} color={c.estado?.alarmaArmada ? colores.armada : colores.apagado} />
             <Indicador
               icono={puertas.abierta ? "door-open" : "door-closed"}
               titulo="Aberturas"

@@ -7,10 +7,10 @@ const produccion = process.env.APP_VARIANT === "production";
 const PROJECT_ID = "48484418-1134-457b-820d-fb34b4419b0d";
 
 const config: ExpoConfig = {
-  name: "Seguridad Hogar",
+  name: "GuardiEl",
   slug: "seguridad",
   scheme: "seguridadhogar",
-  version: "2.0.0",
+  version: "2.1.0",
   orientation: "portrait",
   icon: "./assets/icon.png",
   userInterfaceStyle: "automatic",
@@ -26,7 +26,7 @@ const config: ExpoConfig = {
   android: {
     package: "com.seguridadhogar.app",
     adaptiveIcon: {
-      backgroundColor: "#E6F4FE",
+      backgroundColor: "#FFFFFF",
       foregroundImage: "./assets/android-icon-foreground.png",
       backgroundImage: "./assets/android-icon-background.png",
       monochromeImage: "./assets/android-icon-monochrome.png",
@@ -40,11 +40,17 @@ const config: ExpoConfig = {
   plugins: [
     "expo-router",
     "expo-secure-store",
+    [
+      "expo-splash-screen",
+      // Logo de GuardiEl sobre blanco (en modo oscuro también: el logo tiene letras oscuras)
+      { image: "./assets/splash-icon.png", imageWidth: 240, resizeMode: "contain", backgroundColor: "#FFFFFF", dark: { backgroundColor: "#FFFFFF" } },
+    ],
     "expo-audio",
     [
       "expo-notifications",
       {
-        color: "#C62828",
+        // Color del ícono chico de las notificaciones (Android): el azul de la marca
+        color: "#1557C0",
         sounds: ["./assets/sounds/alarma.wav"],
         defaultChannel: "alarma",
       },
@@ -54,7 +60,7 @@ const config: ExpoConfig = {
       {
         isBackgroundEnabled: false,
         modes: [],
-        bluetoothAlwaysPermission: "Usamos Bluetooth para configurar el WiFi de tu placa de seguridad.",
+        bluetoothAlwaysPermission: "GuardiEl usa Bluetooth para configurar el WiFi de tu dispositivo de seguridad.",
       },
     ],
     [

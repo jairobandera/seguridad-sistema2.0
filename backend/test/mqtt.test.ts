@@ -8,7 +8,7 @@ import { WebSocket, WebSocketServer } from "ws";
 import { cerrarBroker, crearBroker, streamMqttWs } from "../src/core/mqtt/broker";
 import { enviarComando } from "../src/core/mqtt/comandos";
 import { detenerManejadoresMqtt, iniciarManejadoresMqtt } from "../src/modules/dispositivos/dispositivo.mqtt";
-import { estadoCasa } from "../src/modules/alarma/alarma.service";
+import { cambiarAlarma, estadoCasa } from "../src/modules/alarma/alarma.service";
 import { escenario, limpiarBase, vincularPlaca } from "./ayudas";
 
 vi.mock("../src/core/notificaciones/push", () => ({ enviarPush: vi.fn(async () => 1), esTokenPushValido: () => true }));
@@ -171,5 +171,31 @@ describe("broker MQTT", () => {
     expect(
       await esperar(async () => !(await prisma.dispositivo.findUniqueOrThrow({ where: { deviceId: DEVICE } })).online, 5000),
     ).toBe(true);
+  });
+});
+
+describe("hibernación (modo ahorro)", () => {
+  it("al armar la placa sale del ahorro y al desarmar entra", async () => {
+    const c = await new Promise<MqttClient>((resolve, reject) => {
+      const x = mqtt.connect(url, { clientId: DEVICE, username: cred.user, password: cred.pass, reconnectPeriod: 0, connectTimeout: 3000 });
+      clientes.push(x);
+      x.once("connect", () => resolve(x));
+      x.once("error", reject);
+    });
+    await c.subscribeAsync(`dev/${DEVICE}/cmd`, { qos: 1 });
+    const recibidos: { cmd: string; activo?: boolean }[] = [];
+    c.on("message", (_t, p) => recibidos.push(JSON.parse(p.toString())));
+
+    // Al conectarse puede llegar el modo actual (desarmada = ahorro): se descarta
+    await new Promise((r) => setTimeout(r, 300));
+    const desde = recibidos.length;
+    const ahorro = () => recibidos.slice(desde).filter((m) => m.cmd === "ahorro");
+
+    const disp = await prisma.dispositivo.findUniqueOrThrow({ where: { deviceId: DEVICE } });
+    const dueno = await prisma.casaMiembro.findFirstOrThrow({ where: { casaId: disp.casaId!, rol: "DUENO" } });
+    await cambiarAlarma(dueno.usuarioId, disp.casaId!, true);
+    await cambiarAlarma(dueno.usuarioId, disp.casaId!, false);
+    expect(await esperar(async () => ahorro().length >= 2)).toBe(true);
+    expect(ahorro().map((m) => m.activo)).toEqual([false, true]);
   });
 });

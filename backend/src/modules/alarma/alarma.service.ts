@@ -8,6 +8,7 @@ import { enviarPush } from "../../core/notificaciones/push";
 import { enviarSms } from "../../core/notificaciones/sms";
 import { direccionCasa, eventoDTO, EventoDTO, incluirEvento } from "../eventos/evento.dto";
 import { barrioConGuardiaDeCasa, guardiasDeCasa } from "../barrios/barrio.service";
+import { enviarComando } from "../../core/mqtt/comandos";
 
 /** Eventos más viejos que esto (llegados tarde desde la cola de la placa) no disparan alarma. */
 const MAX_ATRASO_ALARMA_MS = 15 * 60_000;
@@ -261,6 +262,33 @@ function cancelarRetardo(casaId: number) {
   }
 }
 
+/** MySQL cancela una de dos transacciones que chocan (deadlock, P2034): se reintenta. */
+async function conReintento<T>(fn: () => Promise<T>, intentos = 3): Promise<T> {
+  for (let i = 1; ; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const choque = (err as { code?: string }).code === "P2034";
+      if (!choque || i >= intentos) throw err;
+      await new Promise((r) => setTimeout(r, 30 * i));
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Hibernación de las placas
+// ---------------------------------------------------------------------------
+/**
+ * Con la alarma desarmada (o si el dispositivo quedó afuera del armado) la placa entra en ahorro de energía;
+ * armada vuelve a modo normal. No se espera la respuesta: si la placa no está conectada, se le manda al conectarse.
+ */
+export function enviarModoAhorro(disp: Pick<Dispositivo, "deviceId" | "excluidoAlarma">, alarmaArmada: boolean) {
+  const activo = !alarmaArmada || disp.excluidoAlarma;
+  void enviarComando(disp.deviceId, "ahorro", 5_000, { activo }).catch((err) =>
+    logger.warn({ err, deviceId: disp.deviceId }, "No se pudo mandar el modo ahorro"),
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Armar / desarmar
 // ---------------------------------------------------------------------------
@@ -281,11 +309,15 @@ export async function cambiarAlarma(usuarioId: number, casaId: number, armada: b
   const cambiaronExcluidos = antes.size !== fuera.length || fuera.some((id) => !antes.has(id));
 
   if (!armada) cancelarRetardo(casaId);
-  await prisma.$transaction([
-    prisma.dispositivo.updateMany({ where: { casaId, id: { notIn: fuera } }, data: { excluidoAlarma: false } }),
-    prisma.dispositivo.updateMany({ where: { casaId, id: { in: fuera } }, data: { excluidoAlarma: true } }),
-    prisma.casa.update({ where: { id: casaId }, data: { alarmaArmada: armada } }),
-  ]);
+  // Por id (bloquea solo esas filas): con "todos los de la casa" chocaba con los mensajes de las placas
+  const adentro = casa.dispositivos.map((d) => d.id).filter((id) => !fuera.includes(id));
+  await conReintento(() =>
+    prisma.$transaction([
+      prisma.dispositivo.updateMany({ where: { id: { in: adentro } }, data: { excluidoAlarma: false } }),
+      prisma.dispositivo.updateMany({ where: { id: { in: fuera } }, data: { excluidoAlarma: true } }),
+      prisma.casa.update({ where: { id: casaId }, data: { alarmaArmada: armada } }),
+    ]),
+  );
   if (casa.alarmaArmada !== armada || (armada && cambiaronExcluidos)) {
     const nombres = casa.dispositivos.filter((d) => fuera.includes(d.id)).map((d) => nombreDispositivo(d.nombre, d.deviceId));
     await crearEvento({
@@ -300,6 +332,8 @@ export async function cambiarAlarma(usuarioId: number, casaId: number, armada: b
   }
   const estado = await estadoCasa(casaId);
   if (estado) emitirCasa(casaId, "casa:estado", estado);
+  const actuales = await prisma.dispositivo.findMany({ where: { casaId }, select: { deviceId: true, excluidoAlarma: true } });
+  actuales.forEach((d) => enviarModoAhorro(d, armada));
   // Solo importa lo que quedó adentro de la alarma
   const abiertoAdentro = estado?.dispositivos.some((d) => d.puertaAbierta === true && !d.excluido);
   return {
@@ -317,6 +351,8 @@ export async function registrarConexion(disp: Dispositivo, online: boolean) {
   if (!casa) return;
   // Un dispositivo que quedó afuera del armado no genera alerta si se desconecta
   const vigilado = casa.alarmaArmada && !disp.excluidoAlarma;
+  // Al conectarse, la placa se entera de si tiene que hibernar
+  if (online) enviarModoAhorro(disp, casa.alarmaArmada);
 
   const evento = await crearEvento({
     tipo: online ? "DISPOSITIVO_ONLINE" : "DISPOSITIVO_OFFLINE",

@@ -109,7 +109,7 @@ solo a `dev/{deviceId}/cmd`.
 | `dev/{id}/state` (LWT) | broker → | 1 | sí | `{"online":false}` |
 | `dev/{id}/event` | placa → | 1 | no | `{"seq":12,"tipo":"PUERTA_ABIERTA"\|"PUERTA_CERRADA","ts":1730000000}` |
 | `dev/{id}/telemetry` | placa → | 0 | no | `{"rssi":-61,"uptime":3600,"heap":120000,"bat":85,"mv":4010}` cada 60 s |
-| `dev/{id}/cmd` | backend → | 1 | no | `{"id":"<uuid>","cmd":"factory_reset"\|"open_ble"\|"reboot"\|"ping"}` |
+| `dev/{id}/cmd` | backend → | 1 | no | `{"id":"<uuid>","cmd":"factory_reset"\|"open_ble"\|"reboot"\|"ping"}` · `{"id","cmd":"ahorro","activo":bool}` |
 | `dev/{id}/ack` | placa → | 1 | no | `{"id":"<uuid>","ok":true,"error":null}` |
 
 - `seq` empieza en 1 luego de cada vinculación y sube de a 1. La placa lo guarda en flash y guarda en
@@ -126,6 +126,10 @@ solo a `dev/{deviceId}/cmd`.
 - Batería baja: el backend avisa por push a la familia una vez al 20 % (`BATERIA_BAJA`, INFO) y otra al 10 %
   (ALERTA). Vuelve a avisar recién después de superar el 30 % (la cargaron).
 - `factory_reset`: la placa manda el `ack`, borra todo y reinicia en modo configuración.
+- `ahorro` (hibernación): el backend lo manda al armar/desarmar y cada vez que la placa se conecta.
+  `activo: true` con la alarma desarmada o si el dispositivo quedó afuera del armado parcial → CPU a 80 MHz, WiFi en
+  ahorro máximo y LED de "OK" apagado; `false` → modo normal. El sensor, el MQTT y la batería siguen funcionando igual.
+  Con el Bluetooth abierto (configuración) la placa queda en modo normal.
 
 ---
 
@@ -248,4 +252,5 @@ Todo filtrado a las casas con guardia de los barrios que cubre el guardia (el ad
 `PUT /api/admin/casas/:id/miembros` `{miembros:[{usuarioId,rol}]}`,
 `GET /api/admin/dispositivos?estado=`, `GET /api/admin/sistema`.
 
-`GET /health` y `GET /api/health` (públicos, para cron-job) → `{ok, db, mqtt, hora}`.
+`GET /health` y `GET /api/health` (públicos) → `{ok, db, mqtt, hora}` (solo `SELECT 1`).
+`GET /api/salud` (pública, para el cron-job) → escribe y lee en la base: `{ok, db:{escritura, lectura, ms, llamadas}, conteos, mqtt, hora}`.

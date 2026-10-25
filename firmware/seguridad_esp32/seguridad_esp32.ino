@@ -24,6 +24,7 @@
 #include "ble_prov.h"
 #include "token.h"
 #include "bateria.h"
+#include "energia.h"
 
 static const unsigned long INDEFINIDO = 0xFFFFFFFFUL;
 
@@ -94,6 +95,7 @@ void error(const char* fase, const char* motivo) {
 void abrirModoConfig(unsigned long duracion) {
   configDesde = millis();
   configHasta = duracion == INDEFINIDO ? INDEFINIDO : millis() + duracion;
+  energia::bluetoothAbierto(true);  // sale del ahorro antes de prender el Bluetooth
   ble::abrir(deviceId, almacen::vinculada());
 }
 
@@ -101,6 +103,7 @@ void cerrarModoConfig() {
   configHasta = 0;
   bleAbiertoPorCaida = false;
   ble::cerrar();
+  energia::bluetoothAbierto(false);
 }
 
 bool modoConfig() { return configHasta != 0; }
@@ -289,6 +292,10 @@ void comandosMqtt() {
     } else if (cmd == "open_ble") {
       mqttmgr::publicarAck(c.id, true, nullptr);
       abrirModoConfig(MODO_CONFIG_MS);
+    } else if (cmd == "ahorro" && c.activo >= 0) {
+      // Hibernación: alarma desarmada (o dispositivo afuera del armado) -> ahorro; armada -> normal
+      energia::pedirAhorro(c.activo == 1);
+      mqttmgr::publicarAck(c.id, true, nullptr);
     } else if (cmd == "reboot") {
       mqttmgr::publicarAck(c.id, true, nullptr);
       programarReinicio(1500, false);
@@ -361,7 +368,8 @@ void actualizarLed() {
   else if (modoConfig()) led::patron(PatronLed::CONFIG);
   else if (!red::conectado()) led::patron(PatronLed::SIN_WIFI);
   else if (!mqttmgr::conectado()) led::patron(PatronLed::SIN_MQTT);
-  else led::patron(PatronLed::OK);
+  // En ahorro no se gasta ni el destello de "todo OK"
+  else led::patron(energia::enAhorro() ? PatronLed::APAGADO : PatronLed::OK);
   led::actualizar();
 }
 

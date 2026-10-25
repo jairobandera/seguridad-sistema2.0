@@ -10,6 +10,7 @@ namespace mqttmgr {
 struct Comando {
   char id[48];
   char cmd[24];
+  int8_t activo;  // campo "activo" de "ahorro": 1, 0 o -1 si no vino
 };
 
 void configurar(const String& url, const String& user, const String& pass, const String& deviceId);

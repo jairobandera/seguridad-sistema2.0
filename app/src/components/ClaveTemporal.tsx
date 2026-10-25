@@ -14,7 +14,7 @@ export function ClaveTemporal({ clave, email, alCerrar }: { clave: string | null
           </Text>
         </Dialog.Content>
         <Dialog.Actions>
-          <Button onPress={() => Share.share({ message: `Tu acceso a Seguridad Hogar:\nUsuario: ${email}\nContraseña temporal: ${clave}` })}>
+          <Button onPress={() => Share.share({ message: `Tu acceso a GuardiEl:\nUsuario: ${email}\nContraseña temporal: ${clave}` })}>
             Compartir
           </Button>
           <Button onPress={alCerrar}>Listo</Button>

@@ -94,7 +94,7 @@ export default function Sistemas() {
                   <CodigoCompartir
                     titulo="Código para que los vecinos se registren"
                     codigo={b.codigoRegistro}
-                    mensaje={(c) => `Para usar la alarma de ${b.nombre}, bajá la app Seguridad Hogar, tocá "Crear cuenta" y poné el código ${c}`}
+                    mensaje={(c) => `Para usar la alarma de ${b.nombre}, bajá la app GuardiEl, tocá "Crear cuenta" y poné el código ${c}`}
                     generar={async () => {
                       await admin.codigoBarrio(b.id);
                       refrescar();

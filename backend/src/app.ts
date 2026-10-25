@@ -38,6 +38,33 @@ export function crearApp() {
   app.get("/health", salud);
   app.get("/api/health", salud);
 
+  // Para el cron-job: escribe y lee de verdad en la base (Aiven Free apaga la base si no ve actividad)
+  app.get("/api/salud", async (_req, res) => {
+    const inicio = Date.now();
+    try {
+      const ahora = new Date();
+      const [latido, usuarios, casas, dispositivos] = await prisma.$transaction([
+        prisma.latido.upsert({
+          where: { id: 1 },
+          update: { ultimo: ahora, llamadas: { increment: 1 } },
+          create: { id: 1, ultimo: ahora, llamadas: 1 },
+        }),
+        prisma.usuario.count(),
+        prisma.casa.count(),
+        prisma.dispositivo.count(),
+      ]);
+      res.json({
+        ok: true,
+        db: { escritura: true, lectura: true, ms: Date.now() - inicio, llamadas: latido.llamadas },
+        conteos: { usuarios, casas, dispositivos },
+        mqtt: estadoBroker().activo,
+        hora: ahora.toISOString(),
+      });
+    } catch {
+      res.status(503).json({ ok: false, db: { escritura: false, lectura: false, ms: Date.now() - inicio }, hora: new Date().toISOString() });
+    }
+  });
+
   app.use("/auth", authRouter);
   app.use("/api/dispositivos", dispositivosRouter); // /provision es público; el resto autentica adentro
 

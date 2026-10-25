@@ -23,7 +23,7 @@ export default function Alertas() {
         <Dato valor={r?.pendientes} texto="Pendientes" color={colores.peligro} />
         <Dato valor={r?.enCurso} texto="En curso" color={colores.aviso} />
         <Dato valor={r?.dispositivosOffline} texto="Sin conexión" color={colores.apagado} />
-        <Dato valor={r?.casasArmadas} texto="Armadas" color={colores.ok} />
+        <Dato valor={r?.casasArmadas} texto="Armadas" color={colores.armada} />
       </View>
       <SegmentedButtons
         style={{ marginHorizontal: 16, marginBottom: 8 }}

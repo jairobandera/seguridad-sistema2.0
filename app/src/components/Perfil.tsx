@@ -3,10 +3,9 @@ import { Linking, ScrollView } from "react-native";
 import { Banner, Button, Card, List, Snackbar, Text, useTheme } from "react-native-paper";
 import { router } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
-import * as Application from "expo-application";
 import { yo } from "@/api/endpoints";
 import { mensajeDeError } from "@/api/cliente";
-import { API_URL } from "@/config";
+import { NOMBRE_APP, VERSION_APP } from "@/config";
 import { useSesion } from "@/store/sesion";
 import { permisoPush, registrarPush } from "@/push/notificaciones";
 import { cerrarSesion } from "@/sesion/acciones";
@@ -79,7 +78,7 @@ export function Perfil() {
           Cerrar sesión
         </Button>
         <Text variant="bodySmall" style={{ textAlign: "center", color: tema.colors.onSurfaceVariant }}>
-          Versión {Application.nativeApplicationVersion ?? "dev"} · {API_URL}
+          {NOMBRE_APP} {VERSION_APP}
         </Text>
       </ScrollView>
       <Snackbar visible={!!aviso} onDismiss={() => setAviso(null)} duration={4000}>

@@ -61,6 +61,13 @@ model GuardiaBarrio {
   @@index([barrioId])
 }
 
+// Una sola fila: /api/salud la actualiza en cada llamada (actividad real para que la base no se apague)
+model Latido {
+  id       Int      @id
+  ultimo   DateTime
+  llamadas Int      @default(0)
+}
+
 model Usuario {
   id                  Int      @id @default(autoincrement())
   nombre              String

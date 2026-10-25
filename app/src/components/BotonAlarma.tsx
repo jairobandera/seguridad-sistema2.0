@@ -11,7 +11,7 @@ interface Props {
 
 /** Botón grande: hay que mantenerlo apretado para evitar toques sin querer. */
 export function BotonAlarma({ armada, cargando, alCambiar }: Props) {
-  const color = armada ? colores.ok : colores.apagado;
+  const color = armada ? colores.armada : colores.apagado;
   return (
     <View style={{ alignItems: "center" }}>
       <Pressable
@@ -24,10 +24,15 @@ export function BotonAlarma({ armada, cargando, alCambiar }: Props) {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           alCambiar(!armada);
         }}
-        style={({ pressed }) => [estilos.circulo, { borderColor: color, backgroundColor: color + (pressed ? "33" : "1A") }]}
+        style={({ pressed }) => [
+          estilos.circulo,
+          armada
+            ? { borderColor: color, backgroundColor: pressed ? "#0B3D91" : color, shadowColor: color }
+            : { borderColor: color, backgroundColor: color + (pressed ? "33" : "14"), shadowColor: "#000" },
+        ]}
       >
-        {cargando ? <ActivityIndicator size="large" /> : <Icon source={armada ? "shield-lock" : "shield-off-outline"} size={72} color={color} />}
-        <Text variant="titleLarge" style={{ color, fontWeight: "800", marginTop: 4 }}>
+        {cargando ? <ActivityIndicator size="large" /> : <Icon source={armada ? "shield-lock" : "shield-off-outline"} size={72} color={armada ? "#FFFFFF" : color} />}
+        <Text variant="titleLarge" style={{ color: armada ? "#FFFFFF" : color, fontWeight: "800", marginTop: 4, letterSpacing: 1 }}>
           {armada ? "ARMADA" : "DESARMADA"}
         </Text>
       </Pressable>
@@ -39,5 +44,16 @@ export function BotonAlarma({ armada, cargando, alCambiar }: Props) {
 }
 
 const estilos = StyleSheet.create({
-  circulo: { width: 200, height: 200, borderRadius: 100, borderWidth: 6, alignItems: "center", justifyContent: "center" },
+  circulo: {
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    borderWidth: 6,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowOpacity: 0.25,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
+  },
 });

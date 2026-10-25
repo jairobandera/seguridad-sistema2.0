@@ -17,6 +17,17 @@ beforeAll(async () => {
   dispositivoAjenoId = (await vincularPlaca(e.casaAjena.id, "B1B2C3D4E5F6")).disp.id;
 });
 
+describe("salud", () => {
+  it("/api/salud escribe y lee en la base (para que no se apague) y es pública", async () => {
+    const a = await request(app).get("/api/salud");
+    const b = await request(app).get("/api/salud");
+    expect(a.status).toBe(200);
+    expect(b.body.db).toMatchObject({ escritura: true, lectura: true });
+    expect(b.body.db.llamadas).toBe(a.body.db.llamadas + 1);
+    expect(b.body.conteos.usuarios).toBeGreaterThan(0);
+  });
+});
+
 describe("auth", () => {
   it("rechaza sin token", async () => {
     expect((await request(app).get("/api/me")).status).toBe(401);

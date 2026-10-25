@@ -47,6 +47,24 @@ Compará los mV con el multímetro en la batería: tienen que dar parecido (±10
 Si no aparece la línea, la placa no detecta batería: revisá el divisor (con la batería conectada, GPIO34 tiene que medir la mitad de la batería).
 Si tu divisor usa otras resistencias, cambiá `BATERIA_DIVISOR` en `config.h` por `(R1 + R2) / R2`.
 
+**Lo que importa es que las dos resistencias sean iguales**, no su valor exacto: con dos de 82 kΩ (o dos de 68 kΩ,
+47 kΩ…) el divisor sigue siendo `2.0` y no hay que tocar nada. Si son distintas (ej. arriba 82 kΩ y abajo 85 kΩ):
+`(82 + 85) / 85 = 1.96` → poné `#define BATERIA_DIVISOR 1.96f`. Con valores entre 47 kΩ y 220 kΩ el consumo del divisor
+es despreciable (unos 25 µA con 82 kΩ).
+
+## Hibernación (ahorro de energía con la alarma desarmada)
+Con la alarma **desarmada**, el servidor le manda a la placa el comando `ahorro` y la placa:
+- baja el procesador de 240 MHz a **80 MHz** (el mínimo con el que funciona el WiFi);
+- pone el WiFi en **ahorro máximo** (la radio duerme entre las señales del router);
+- apaga el destello de "todo OK" del LED.
+
+Sigue igual: el WiFi conectado, el sensor de la puerta (se ve abierta/cerrada en vivo), el MQTT y la batería.
+Al **armar**, vuelve a modo normal. Con el Bluetooth abierto (configurar/cambiar WiFi) no hiberna.
+En el Monitor Serie se ve `[energia] ahorro activado (CPU 80 MHz)` / `[energia] modo normal (CPU 240 MHz)`.
+
+> Ahorro esperado: entre un 20 y un 35 % menos de consumo con la alarma desarmada (depende del router).
+> Medilo con un multímetro en serie con la batería para tener el número real de tu placa.
+
 ## Cómo subirlo con Arduino IDE
 1. Abrí `firmware/seguridad_esp32/seguridad_esp32.ino` (se abren todas las pestañas solas).
 2. **Herramientas → Placa → esp32 → ESP32 Dev Module** (core "esp32 by Espressif" 3.x).

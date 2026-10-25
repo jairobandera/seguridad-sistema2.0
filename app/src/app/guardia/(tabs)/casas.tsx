@@ -74,7 +74,7 @@ export default function CasasGuardia() {
                   {c.dueno?.nombre ?? "Sin dueño asignado"}
                 </Text>
                 <View style={[estilos.fila, { marginTop: 8, gap: 16 }]}>
-                  <Estado icono={c.alarmaArmada ? "shield-lock" : "shield-off-outline"} texto={c.alarmaArmada ? "Armada" : "Desarmada"} color={c.alarmaArmada ? colores.ok : colores.apagado} />
+                  <Estado icono={c.alarmaArmada ? "shield-lock" : "shield-off-outline"} texto={c.alarmaArmada ? "Armada" : "Desarmada"} color={c.alarmaArmada ? colores.armada : colores.apagado} />
                   {c.cantidadDispositivos > 0 ? (
                     <>
                       <Estado icono={c.puertaAbierta ? "door-open" : "door-closed"} texto={c.puertaAbierta ? "Abierta" : "Cerrada"} color={c.puertaAbierta ? colores.peligro : colores.ok} />

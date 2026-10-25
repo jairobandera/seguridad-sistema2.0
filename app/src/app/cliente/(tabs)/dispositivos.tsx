@@ -179,20 +179,33 @@ export default function Dispositivos() {
             <List.Item title="Última conexión" description={haceCuanto(d.ultimaConexion)} left={(p) => <List.Icon {...p} icon="clock-outline" />} />
             <List.Item title="Identificador" description={`${d.deviceId} · v${d.firmwareVersion ?? "?"}`} left={(p) => <List.Icon {...p} icon="chip" />} />
             {esDueno ? (
-              <Card.Actions style={{ flexWrap: "wrap" }}>
-                <Button icon="pencil" onPress={() => abrir(d, "nombre")} disabled={trabajando !== null}>
+              <View style={estilos.acciones}>
+                <Button mode="contained-tonal" icon="pencil" onPress={() => abrir(d, "nombre")} disabled={trabajando !== null}>
                   Nombre
                 </Button>
-                <Button icon="wifi-cog" onPress={() => cambiarWifi(d)} loading={trabajando === d.id && !dialogo} disabled={trabajando !== null}>
+                <Button
+                  mode="contained-tonal"
+                  icon="wifi-cog"
+                  onPress={() => cambiarWifi(d)}
+                  loading={trabajando === d.id && !dialogo}
+                  disabled={trabajando !== null}
+                >
                   Cambiar WiFi
                 </Button>
-                <Button icon="restart" onPress={() => abrir(d, "reiniciar")} disabled={trabajando !== null}>
+                <Button mode="contained-tonal" icon="restart" onPress={() => abrir(d, "reiniciar")} disabled={trabajando !== null}>
                   Reiniciar
                 </Button>
-                <Button icon="restore-alert" textColor={colores.peligro} onPress={() => abrir(d, "reset")} disabled={trabajando !== null}>
+                <Button
+                  mode="outlined"
+                  icon="restore-alert"
+                  textColor={colores.peligro}
+                  style={{ borderColor: colores.peligro }}
+                  onPress={() => abrir(d, "reset")}
+                  disabled={trabajando !== null}
+                >
                   Restablecer
                 </Button>
-              </Card.Actions>
+              </View>
             ) : null}
           </Card>
         ))}
@@ -294,4 +307,5 @@ export default function Dispositivos() {
 const estilos = StyleSheet.create({
   fila: { flexDirection: "row", alignItems: "center", gap: 10 },
   punto: { width: 14, height: 14, borderRadius: 7 },
+  acciones: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingHorizontal: 16, paddingTop: 4, paddingBottom: 16 },
 });
