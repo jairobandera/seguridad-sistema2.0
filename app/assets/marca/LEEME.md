@@ -9,4 +9,4 @@
 
 > El original es chico (550×422). Para imprimirlo en grande (cartel, vinilo, remera) conviene pedir una
 > versión **vectorial** (SVG, AI o PDF) a quien lo diseñó, o redibujarlo en vector a partir de este archivo.
-> Los íconos de la app (`../icon.png`, `../android-icon-*.png`, `../splash-icon.png`, `../favicon.png`) salen de acá.
+> Los íconos de la app (`../icon.png`, `../android-icon-*.png`, `../favicon.png`) salen de acá. La pantalla de carga (`../splash-guardiel.png`) es la palabra GuardiEl en blanco y celeste, sin fondo.

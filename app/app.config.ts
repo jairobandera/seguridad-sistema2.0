@@ -42,14 +42,15 @@ const config: ExpoConfig = {
     "expo-secure-store",
     [
       "expo-splash-screen",
-      // Solo el azul de la marca (Android 12+ recorta la imagen en un círculo): enseguida aparece la bienvenida
-      // con la palabra GuardiEl (src/components/Bienvenida.tsx), sobre el mismo azul.
+      // La palabra GuardiEl sobre el azul de la marca. Android 12+ muestra solo un círculo de 192dp en el centro:
+      // con 180dp de ancho la palabra entra completa. La bienvenida (src/components/Bienvenida.tsx) usa la misma
+      // imagen en el mismo lugar, así el paso de una a otra no se nota.
       {
-        image: "./assets/splash-vacio.png",
-        imageWidth: 1,
+        image: "./assets/splash-guardiel.png",
+        imageWidth: 180,
         resizeMode: "contain",
         backgroundColor: "#0B3D91",
-        dark: { image: "./assets/splash-vacio.png", backgroundColor: "#0B3D91" },
+        dark: { image: "./assets/splash-guardiel.png", backgroundColor: "#0B3D91" },
       },
     ],
     "expo-audio",
