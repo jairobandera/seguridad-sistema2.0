@@ -19,11 +19,16 @@
 // GPIO34 es ADC1 (funciona con el WiFi prendido) y solo entrada.
 // ---------------------------------------------------------------------
 #define BATERIA_PIN 34
-#define BATERIA_DIVISOR 2.0f       // (100k + 100k) / 100k
-#define BATERIA_MUESTRAS 16
+#define BATERIA_DIVISOR 2.0f       // (R1 + R2) / R2: con dos resistencias iguales es 2.0
+// Ajuste fino con el multímetro: (lo que mide el multímetro) / (lo que dice "[bateria] ... mV"), ej. 1.03f
+#define BATERIA_CALIBRACION 1.0f
+#define BATERIA_LECTURAS 8         // lecturas por muestra
+#define BATERIA_INTERVALO_MS 250UL // una muestra cada 250 ms...
+#define BATERIA_VENTANA 40         // ...en una ventana de 10 s (descarta las caídas cuando transmite el WiFi)
+#define BATERIA_HISTERESIS_PCT 3   // el % informado cambia recién con 3 puntos de diferencia
 #define BATERIA_MIN_MV 3000        // por debajo: no hay batería (o está agotada y la placa ya se apaga)
 #define BATERIA_MAX_MV 4400        // por encima: no es una 18650 (pin al aire o mal conectado)
-#define BATERIA_RUIDO_MAX_MV 300   // diferencia máxima entre lecturas para considerarla real
+#define BATERIA_RUIDO_MAX_MV 300   // dispersión máxima de las muestras para considerarla una batería real
 
 // ---------------------------------------------------------------------
 // Backend por defecto. Normalmente la app manda su URL al configurar la placa,

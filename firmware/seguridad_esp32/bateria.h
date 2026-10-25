@@ -11,7 +11,9 @@ struct Lectura {
 };
 
 void iniciar();
-// Tarda ~2 ms (16 lecturas del ADC)
+// En cada loop: toma una muestra cada 250 ms (no bloquea)
+void actualizar();
+// Tensión estable de la ventana de 10 s (sin las caídas del WiFi), suavizada y con histéresis
 Lectura medir();
 
 }  // namespace bateria

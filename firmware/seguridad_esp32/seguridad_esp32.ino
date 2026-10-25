@@ -412,6 +412,7 @@ void loop() {
   if (sensor::actualizar()) registrarCambioPuerta(sensor::puertaAbierta());
   revisarBoton();
   red::actualizar();
+  bateria::actualizar();
 
   String linea;
   while (ble::tomarLinea(linea)) comandoBle(linea);

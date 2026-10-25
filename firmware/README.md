@@ -52,6 +52,20 @@ Si tu divisor usa otras resistencias, cambiá `BATERIA_DIVISOR` en `config.h` po
 `(82 + 85) / 85 = 1.96` → poné `#define BATERIA_DIVISOR 1.96f`. Con valores entre 47 kΩ y 220 kΩ el consumo del divisor
 es despreciable (unos 25 µA con 82 kΩ).
 
+### Por qué el % puede variar y cómo se calibra
+Una 18650 baja de tensión por un instante cada vez que el WiFi transmite, y entre 80 % y 60 % hay apenas 0,15 V:
+una caída de 0,1 V se veía como 10–15 % menos. Por eso la placa mide en una **ventana de 10 s** (una muestra cada
+250 ms), usa la franja alta de las muestras (sin las caídas del WiFi), suaviza entre reportes y el % cambia recién con
+**3 puntos** de diferencia.
+
+Recién sacada del cargador es normal que marque ~90–95 %: la tensión baja enseguida de 4,2 V a ~4,1 V.
+
+**Calibrar con el multímetro** (opcional): con la placa funcionando, medí la batería (B+ y B−) y compará con la línea
+`[bateria] XXXX mV` del Monitor Serie. En `config.h`:
+```
+#define BATERIA_CALIBRACION 1.02f   // = multímetro / lo que dice la placa (ej. 4080 / 4000)
+```
+
 ## Hibernación (ahorro de energía con la alarma desarmada)
 Con la alarma **desarmada**, el servidor le manda a la placa el comando `ahorro` y la placa:
 - baja el procesador de 240 MHz a **80 MHz** (el mínimo con el que funciona el WiFi);
