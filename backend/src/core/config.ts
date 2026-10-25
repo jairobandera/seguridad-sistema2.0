@@ -41,6 +41,12 @@ const esquema = z.object({
   SMS_HABILITADO: bool.default("false"),
   SMS_MINUTOS_ENTRE_ALERTAS: z.coerce.number().int().nonnegative().default(5),
 
+  // Emails (código para restablecer la contraseña) por la API HTTP de Brevo.
+  // Render gratis bloquea SMTP, por eso se usa HTTPS. Sin clave: en desarrollo el código sale en la consola.
+  BREVO_API_KEY: z.string().optional(),
+  EMAIL_REMITENTE: z.string().email().optional(),
+  EMAIL_NOMBRE_REMITENTE: z.string().default("GuardiEl"),
+
   SEED_ADMIN_EMAIL: z.string().email().optional(),
   SEED_ADMIN_PASSWORD: z.string().min(8).optional(),
 });

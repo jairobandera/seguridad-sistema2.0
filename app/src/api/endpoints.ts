@@ -47,6 +47,10 @@ export const auth = {
     codigo: string | null;
     direccion: { calle: string; numero: string; manzana: string | null } | null;
   }) => api<Sesion>("/auth/registro", { metodo: "POST", cuerpo: d, sinAuth: true }),
+  /** "Olvidé mi contraseña": manda un código de 6 números al email (responde igual si no existe) */
+  olvidePassword: (email: string) => api<void>("/auth/olvide-password", { metodo: "POST", cuerpo: { email }, sinAuth: true }),
+  restablecerPassword: (email: string, codigo: string, nueva: string) =>
+    api<Sesion>("/auth/restablecer-password", { metodo: "POST", cuerpo: { email, codigo, nueva }, sinAuth: true }),
   cambiarPassword: (actual: string, nueva: string) =>
     api<Sesion>("/auth/cambiar-password", { metodo: "POST", cuerpo: { actual, nueva } }),
 };

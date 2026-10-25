@@ -11,6 +11,7 @@ import { desconectarUsuario } from "../../core/socket";
 import { esquemaEmail, esquemaPassword, hashPassword } from "../usuarios/usuario.publico";
 import { crearSesion, invalidarSesiones, renovarSesion } from "./auth.service";
 import { esquemaRegistro, registrar } from "./registro.service";
+import { esquemaRestablecer, esquemaSolicitud, restablecerPassword, solicitarCodigo } from "./recuperacion.service";
 
 export const authRouter = Router();
 
@@ -54,6 +55,29 @@ const limiteRegistro = rateLimit({
 authRouter.post("/registro", limiteRegistro, async (req, res) => {
   const usuarioId = await registrar(esquemaRegistro.parse(req.body));
   res.status(201).json(await crearSesion(usuarioId, datosCliente(req)));
+});
+
+// "Olvidé mi contraseña": pocas solicitudes por conexión (cada una puede mandar un email)
+const limiteRecuperar = rateLimit({
+  windowMs: 15 * 60_000,
+  limit: config.esTest ? 1000 : 10,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { error: "demasiados_intentos", mensaje: "Demasiados intentos. Esperá unos minutos y probá de nuevo." },
+});
+
+/** Manda un código de 6 dígitos al email. Responde igual exista o no la cuenta. */
+authRouter.post("/olvide-password", limiteRecuperar, async (req, res) => {
+  await solicitarCodigo(esquemaSolicitud.parse(req.body).email);
+  res.status(204).end();
+});
+
+/** Con el código del email elige una contraseña nueva: cierra las otras sesiones y queda logueado. */
+authRouter.post("/restablecer-password", limiteRecuperar, async (req, res) => {
+  const usuarioId = await restablecerPassword(esquemaRestablecer.parse(req.body));
+  await invalidarSesiones(usuarioId);
+  desconectarUsuario(usuarioId);
+  res.json(await crearSesion(usuarioId, datosCliente(req)));
 });
 
 authRouter.post("/refresh", async (req, res) => {

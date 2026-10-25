@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "react-native";
-import { Button, HelperText, Text, useTheme } from "react-native-paper";
+import { Button, HelperText, useTheme } from "react-native-paper";
 import { Marca } from "@/components/Marca";
 import { Campo } from "@/components/Campo";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -64,12 +64,10 @@ export default function Login() {
           <Button mode="contained" onPress={entrar} loading={enviando} disabled={enviando} contentStyle={{ paddingVertical: 8 }}>
             Ingresar
           </Button>
-          <Button style={{ marginTop: 12 }} onPress={() => router.push("/registro")}>
-            ¿No tenés cuenta? Creala
+          <Button style={{ marginTop: 12 }} onPress={() => router.push("/olvide-password")}>
+            Olvidé mi contraseña
           </Button>
-          <Text variant="bodySmall" style={[estilos.ayuda, { color: tema.colors.onSurfaceVariant }]}>
-            ¿Olvidaste tu contraseña? Pedile a la administración que te la restablezca.
-          </Text>
+          <Button onPress={() => router.push("/registro")}>¿No tenés cuenta? Creala</Button>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -79,5 +77,4 @@ export default function Login() {
 const estilos = StyleSheet.create({
   contenido: { flexGrow: 1, justifyContent: "center", padding: 24 },
   logo: { alignItems: "center", marginBottom: 36 },
-  ayuda: { textAlign: "center", marginTop: 24 },
 });

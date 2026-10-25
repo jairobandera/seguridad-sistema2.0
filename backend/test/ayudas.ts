@@ -24,6 +24,7 @@ export async function limpiarBase() {
     prisma.contactoEmergencia.deleteMany(),
     prisma.pushToken.deleteMany(),
     prisma.sesion.deleteMany(),
+    prisma.recuperacionPassword.deleteMany(),
     prisma.usuario.deleteMany(),
   ]);
 }

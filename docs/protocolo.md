@@ -197,6 +197,8 @@ Base: `API_URL`. Autenticación: `Authorization: Bearer <accessToken>` (15 min).
 |---|---|---|
 | POST | `/auth/login` | `{email,password}` → `{accessToken,refreshToken,usuario}` |
 | POST | `/auth/registro` | `{nombre,apellido,email,password,telefono?,codigo?,direccion?:{calle,numero,manzana?}}` → igual que login (201). Sin código: casa INDIVIDUAL propia (dueño). `B-…`: casa nueva en ese barrio (dueño). `F-…`: se suma como FAMILIAR a esa casa. Dirección obligatoria salvo con `F-`. Errores: `codigo_invalido` (400), `sin_direccion` (400), `email_en_uso` (409) |
+| POST | `/auth/olvide-password` | `{email}` → 204 siempre (no revela si el email existe). Si es una cuenta activa manda por email un código de 6 dígitos (vale 15 min, uno nuevo anula el anterior, como máximo uno por minuto). `correo_no_configurado` (503) en producción sin Brevo; `correo_fallo` (503) si Brevo no lo aceptó |
+| POST | `/auth/restablecer-password` | `{email,codigo,nueva}` → igual que login: cambia la contraseña sin pedir la anterior, cierra las otras sesiones y queda logueado. Errores: `codigo_invalido` (400), `demasiados_intentos` (400, tras 5 códigos mal: hay que pedir otro) |
 | POST | `/auth/refresh` | `{refreshToken}` → `{accessToken,refreshToken,usuario}` (rota) |
 | POST | `/auth/logout` | `{refreshToken, pushToken?}` → 204 |
 | POST | `/auth/cambiar-password` | `{actual,nueva}` (JWT) → 204 |

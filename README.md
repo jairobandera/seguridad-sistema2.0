@@ -318,6 +318,30 @@ desconecta estando armada. Como máximo 1 SMS cada 5 minutos por casa (`SMS_MINU
 
 ---
 
+## 10.1 Emails con Brevo (opcional): "Olvidé mi contraseña"
+
+En el login, **Olvidé mi contraseña** manda un código de 6 números al email de la cuenta; con ese código se elige
+una contraseña nueva sin saber la anterior.
+
+- **En tu PC no hace falta configurar nada:** el código aparece en la consola del backend
+  (`Email deshabilitado. Código para restablecer la contraseña: 123456`).
+- Para que llegue de verdad por email (gratis, 300 por día):
+  1. Creá una cuenta en https://www.brevo.com.
+  2. **Senders, Domains & Dedicated IPs → Senders → Add a sender**: tu email (ej. el Gmail del sistema). Confirmalo
+     con el email que te llega.
+  3. **SMTP & API → API Keys → Generate a new API key**.
+  4. En `backend/.env`:
+     ```
+     BREVO_API_KEY=xkeysib-...
+     EMAIL_REMITENTE=tu-email@gmail.com
+     ```
+  5. Reiniciá el backend. Ya no debería decir "Email deshabilitado".
+
+> Se usa la API de Brevo (HTTPS) y no SMTP porque Render gratis bloquea SMTP. Con un Gmail como remitente, Brevo lo
+> manda desde una dirección suya (`...@brevosend.com`) con el nombre **GuardiEl**: llega igual.
+
+---
+
 ## 11. Tests y chequeos
 
 Backend (con MySQL prendido; usa la base `seguridad_test`):
@@ -369,6 +393,8 @@ Sin guardia (casa individual o barrio con la guardia apagada) la alarma avisa al
   - con el **código del barrio** (`B-…`, lo genera el admin en Sistemas) → casa nueva en ese barrio, con su guardia;
   - con el **código de familia** (`F-…`, lo genera el dueño en Más → Familia) → se suma como familiar.
 - Guardias y admins los crea el admin (con clave temporal).
+- **¿Se olvidó la contraseña?** En el login, **Olvidé mi contraseña**: le llega un código al email y elige una nueva
+  (ver 10.1).
 
 ## Actualizaciones de la app
 La app de Android y iPhone se actualiza **por aire** (EAS Update): cuando se publica un cambio, al abrirla aparece

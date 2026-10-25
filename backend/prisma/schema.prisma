@@ -91,6 +91,7 @@ model Usuario {
   eventosAtendidos EventoEstado[]       @relation("GuardiaEventos")
   eventosGenerados Evento[]             @relation("EventoUsuario")
   barriosGuardia   GuardiaBarrio[]
+  recuperaciones   RecuperacionPassword[]
 }
 
 model Casa {
@@ -175,6 +176,20 @@ model CodigoVinculacion {
   casa              Casa      @relation(fields: [casaId], references: [id], onDelete: Cascade)
   usuarioId         Int
   usuario           Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+}
+
+/// Código de 6 dígitos que llega por email para restablecer la contraseña ("Olvidé mi contraseña")
+model RecuperacionPassword {
+  id         Int       @id @default(autoincrement())
+  codigoHash String
+  expiraEn   DateTime
+  intentos   Int       @default(0)
+  usadoEn    DateTime?
+  creadoEn   DateTime  @default(now())
+  usuarioId  Int
+  usuario    Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
 }
 
 model Evento {
