@@ -295,4 +295,19 @@ describe("batería baja", () => {
     const ev = await prisma.evento.findMany({ where: { tipo: "BATERIA_BAJA" }, orderBy: { id: "asc" } });
     expect(ev.map((x) => x.valor)).toEqual(["19", "9", "19"]);
   });
+
+  it("si se desconecta con poca batería, el aviso dice que seguramente fue la batería", async () => {
+    const desconexion = () => vi.mocked(enviarPush).mock.calls.filter((c) => c[1].tipo === "OFFLINE").at(-1)![1].cuerpo;
+    await _procesarMensaje(DEVICE, "state", { online: true, puerta: "cerrada" });
+    await bateria(60);
+    await _procesarMensaje(DEVICE, "state", { online: false });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(desconexion()).not.toContain("batería");
+
+    await _procesarMensaje(DEVICE, "state", { online: true, puerta: "cerrada" });
+    await bateria(8);
+    await _procesarMensaje(DEVICE, "state", { online: false });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(desconexion()).toContain("sin batería: tenía 8 %");
+  });
 });

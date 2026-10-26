@@ -158,7 +158,7 @@ export default function Dispositivos() {
                 </Text>
               </View>
               <Text variant="bodyMedium" style={{ marginTop: 4, color: tema.colors.onSurfaceVariant }}>
-                {d.online ? "Conectado" : "Sin conexión. Revisá que esté enchufado y que el WiFi funcione; si cambiaste el router, usá “Cambiar WiFi”."}
+                {d.online ? "Conectado" : "Sin conexión. Revisá que esté enchufado o con batería cargada y que el WiFi funcione; si cambiaste el router, usá “Cambiar WiFi”."}
               </Text>
             </Card.Content>
             <List.Item
@@ -166,11 +166,18 @@ export default function Dispositivos() {
               left={(p) => <List.Icon {...p} icon={d.puertaAbierta ? "door-open" : "door-closed"} color={d.puertaAbierta ? colores.aviso : undefined} />}
             />
             <List.Item title="Red WiFi" description={d.ssid || "—"} left={(p) => <List.Icon {...p} icon={`wifi-strength-${barrasSenal(d.rssi)}`} />} />
-            {d.bateria != null ? (
+            {d.bateria != null && d.online ? (
               <List.Item
                 title="Batería"
                 description={`${d.bateria} %`}
                 left={(p) => <List.Icon {...p} icon={iconoBateria(d.bateria!)} color={colorBateria(d.bateria!)} />}
+              />
+            ) : d.bateria != null ? (
+              // Desconectado: el % es de antes de cortarse, no el de ahora
+              <List.Item
+                title="Batería"
+                description={`Último dato: ${d.bateria} % (puede haberse quedado sin batería)`}
+                left={(p) => <List.Icon {...p} icon="battery-unknown" color={tema.colors.onSurfaceVariant} />}
               />
             ) : d.online ? (
               // Sin batería conectada al divisor: se alimenta solo por el USB

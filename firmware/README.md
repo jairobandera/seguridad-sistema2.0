@@ -12,6 +12,17 @@ Imán cerca = puerta **cerrada**. Si se corta el cable del sensor, la placa lo t
 ## Batería 18650 (opcional)
 El firmware ya mide la batería y la app muestra el **%** apenas está conectada. Sin batería no se muestra nada.
 
+### ⚠️ Pila soldada directo a la placa (sin TP4056 ni MT3608)
+Funciona, pero:
+- **Se apaga con media pila.** El regulador de la placa (AMS1117) necesita ~1 V de más: con la 18650 en ~3,8 V el
+  ESP32 se queda sin tensión. Por eso `BATERIA_MV_VACIA` en `config.h` está en **3800**: el % llega a 0 justo ahí y
+  los avisos de 20 % y 10 % llegan antes de que se apague.
+- **Peligro: nunca enchufes el USB con la pila puesta.** El USB le mete ~4,7 V a la pila sin control de carga y se
+  puede inflar o prender fuego. Sacala (o apagá la cajita) antes de enchufar, y cargala en un cargador aparte.
+
+Con la conexión de abajo (TP4056 + MT3608) se aprovecha toda la pila (casi el doble de duración), se carga
+enchufando el USB del TP4056 sin riesgo, y hay que cambiar a `#define BATERIA_MV_VACIA 3300`.
+
 ### Qué comprar
 | Componente | Para qué |
 |---|---|

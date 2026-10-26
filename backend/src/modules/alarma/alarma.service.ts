@@ -369,18 +369,21 @@ export async function registrarConexion(disp: Dispositivo, online: boolean) {
     const { miembrosIds, guardiasIds } = await destinatarios(casa.id);
     const lugar = direccionCasa(evento.casa);
     const que = nombreDispositivo(disp.nombre, "el dispositivo de seguridad");
+    // Con poca batería en el último dato, lo más probable es que se haya apagado por eso
+    const porBateria = disp.bateria != null && disp.bateria <= BATERIA_SOSPECHA_PCT;
+    const motivo = porBateria ? ` (seguramente se quedó sin batería: tenía ${disp.bateria} %)` : "";
     await enviarPush(
       vigilado ? [...miembrosIds, ...guardiasIds] : miembrosIds,
       {
         titulo: "Dispositivo sin conexión",
-        cuerpo: `${lugar}: ${que} se desconectó`,
+        cuerpo: `${lugar}: ${que} se desconectó${motivo}`,
         datos: { tipo: "OFFLINE", eventoId: evento.id, casaId: casa.id },
         tipo: "OFFLINE",
       },
       evento.id,
     );
     if (vigilado) {
-      await enviarSmsCasa(casa.id, evento.id, `AVISO: ${que} de ${lugar} se desconectó con la alarma armada.`);
+      await enviarSmsCasa(casa.id, evento.id, `AVISO: ${que} de ${lugar} se desconectó con la alarma armada${motivo}.`);
     }
   }
 }
@@ -392,6 +395,8 @@ const BATERIA_BAJA_PCT = 20;
 const BATERIA_CRITICA_PCT = 10;
 // Recién al superar este % (la cargaron) se vuelve a avisar: evita repetir si la lectura oscila
 const BATERIA_REARME_PCT = 30;
+// Si se desconecta con este % o menos, el aviso dice que seguramente fue la batería
+const BATERIA_SOSPECHA_PCT = 25;
 
 /** Avisa una vez al 20 % y otra al 10 % a la familia (push, sin sirena). */
 export async function revisarBateria(disp: Dispositivo) {

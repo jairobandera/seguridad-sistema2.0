@@ -16,7 +16,8 @@ unsigned long ultimaMuestra_ = 0;
 float mvSuave_ = 0;     // promedio móvil entre reportes
 int pctReportado_ = -1;  // con histéresis para que no "baile"
 
-int porcentaje(int mv) {
+// Carga real de la celda (0-100) según la curva
+int cargaCelda(int mv) {
   if (mv <= TABLA_MV[0]) return 0;
   if (mv >= TABLA_MV[TABLA_N - 1]) return 100;
   for (int i = 1; i < TABLA_N; i++) {
@@ -25,6 +26,14 @@ int porcentaje(int mv) {
     }
   }
   return 100;
+}
+
+// % que le sirve al usuario: 0 % = BATERIA_MV_VACIA (la placa se apaga), no la celda vacía
+int porcentaje(int mv) {
+  int vacia = cargaCelda(BATERIA_MV_VACIA);
+  if (vacia >= 100) return cargaCelda(mv);
+  int pct = (cargaCelda(mv) - vacia) * 100 / (100 - vacia);
+  return pct < 0 ? 0 : pct > 100 ? 100 : pct;
 }
 
 // Una muestra: promedio de varias lecturas seguidas (~0.3 ms), ya llevada a la tensión de la batería

@@ -20,7 +20,7 @@ export function DispositivoFila({ d, alTocar }: { d: DispositivoCasa; alTocar?: 
       )}
       right={() => (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          {d.bateria != null ? (
+          {d.bateria != null && d.online ? (
             <>
               <Icon source={iconoBateria(d.bateria)} size={20} color={colorBateria(d.bateria)} />
               <Text variant="labelMedium">{d.bateria} %</Text>
