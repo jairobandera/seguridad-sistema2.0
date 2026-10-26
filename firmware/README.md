@@ -63,6 +63,11 @@ Si tu divisor usa otras resistencias, cambiá `BATERIA_DIVISOR` en `config.h` po
 `(82 + 85) / 85 = 1.96` → poné `#define BATERIA_DIVISOR 1.96f`. Con valores entre 47 kΩ y 220 kΩ el consumo del divisor
 es despreciable (unos 25 µA con 82 kΩ).
 
+### Sin cable: monitor desde la app (admin)
+En la app, como **admin**: **Dispositivos** → el ícono de consola de cada dispositivo. Muestra lo mismo que el
+Monitor Serie del Arduino IDE, en vivo y por internet (incluido lo último antes de abrirlo), con la batería cada
+10 s. Sirve para seguir la pila sin enchufar el USB. Sin pila aparece `[bateria] sin pila: enchufado por USB`.
+
 ### Por qué el % puede variar y cómo se calibra
 Una 18650 baja de tensión por un instante cada vez que el WiFi transmite, y entre 80 % y 60 % hay apenas 0,15 V:
 una caída de 0,1 V se veía como 10–15 % menos. Por eso la placa mide en una **ventana de 10 s** (una muestra cada

@@ -164,6 +164,11 @@ int publicarAck(const char* id, bool ok, const char* error) {
   return publicar(base_ + "/ack", doc, 1, false);
 }
 
+int publicarLog(const char* texto, size_t largo) {
+  if (!cliente) return -1;
+  return esp_mqtt_client_enqueue(cliente, (base_ + "/log").c_str(), texto, largo, 0, false, true);
+}
+
 bool tomarComando(Comando& c) { return colaComandos && xQueueReceive(colaComandos, &c, 0) == pdTRUE; }
 bool tomarPublicado(int& msgId) { return colaPublicados && xQueueReceive(colaPublicados, &msgId, 0) == pdTRUE; }
 

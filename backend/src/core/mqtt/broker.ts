@@ -11,16 +11,16 @@ import { igualesSeguro, sha256 } from "../cripto";
 /**
  * Broker MQTT embebido (docs/protocolo.md §3).
  * - Las placas se autentican con usuario = deviceId y la contraseña entregada al vincularse.
- * - Cada placa solo puede publicar en dev/{su id}/{state,event,telemetry,ack}
+ * - Cada placa solo puede publicar en dev/{su id}/{state,event,telemetry,ack,log}
  *   y suscribirse a dev/{su id}/cmd.
  * - Transporte: WebSocket en /mqtt (wss:// detrás de Render) y, opcionalmente, TCP.
  */
 
-export type TipoMensaje = "state" | "event" | "telemetry" | "ack";
+export type TipoMensaje = "state" | "event" | "telemetry" | "ack" | "log";
 export type ManejadorMensaje = (deviceId: string, tipo: TipoMensaje, payload: Buffer) => void;
 export type ManejadorConexion = (deviceId: string, conectado: boolean) => void;
 
-const TOPIC_PLACA = /^dev\/([0-9A-F]{12})\/(state|event|telemetry|ack)$/;
+const TOPIC_PLACA = /^dev\/([0-9A-F]{12})\/(state|event|telemetry|ack|log)$/;
 
 let broker: Aedes | null = null;
 let tcpServer: net.Server | null = null;

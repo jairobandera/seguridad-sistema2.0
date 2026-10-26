@@ -5,6 +5,7 @@ import { logger } from "./logger";
 import { prisma } from "./prisma";
 import { verificarAcceso } from "./auth/tokens";
 import { barrioConGuardiaDeCasa, barriosVisiblesDeGuardia } from "../modules/barrios/barrio.service";
+import { escucharMonitor, iniciarMonitor } from "../modules/dispositivos/monitor";
 
 let io: Server | null = null;
 
@@ -42,7 +43,10 @@ export function iniciarSocket(server: http.Server): Server {
   io.on("connection", async (socket) => {
     const { id, rol } = socket.data.usuario as { id: number; rol: string };
     socket.join(roomUsuario(id));
-    if (rol === "ADMIN") socket.join("admins");
+    if (rol === "ADMIN") {
+      socket.join("admins");
+      escucharMonitor(socket);
+    }
     try {
       (await roomsDeseadas(id, rol)).forEach((r) => socket.join(r));
     } catch (err) {
@@ -51,6 +55,7 @@ export function iniciarSocket(server: http.Server): Server {
     logger.debug({ usuarioId: id, rol }, "Socket conectado");
   });
 
+  iniciarMonitor(io);
   return io;
 }
 

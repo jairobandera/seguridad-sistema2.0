@@ -1,4 +1,5 @@
 #include "ble_prov.h"
+#include "consola.h"
 #include <NimBLEDevice.h>
 #include <ArduinoJson.h>
 #include "config.h"
@@ -88,7 +89,7 @@ void abrir(const String& deviceId, bool vinculada) {
   adv->enableScanResponse(true);
   adv->start();
   abierto_ = true;
-  Serial.printf("[ble] Bluetooth abierto como %s\n", nombre.c_str());
+  consola.printf("[ble] Bluetooth abierto como %s\n", nombre.c_str());
 }
 
 void cerrar() {
@@ -100,7 +101,7 @@ void cerrar() {
   conectado_ = false;
   char* l;
   while (lineas && xQueueReceive(lineas, &l, 0) == pdTRUE) free(l);
-  Serial.println("[ble] Bluetooth cerrado");
+  consola.println("[ble] Bluetooth cerrado");
 }
 
 bool abierto() { return abierto_; }

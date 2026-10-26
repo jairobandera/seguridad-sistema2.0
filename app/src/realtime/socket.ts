@@ -87,6 +87,39 @@ export function conectarTiempoReal(qc: QueryClient) {
   });
 }
 
+/**
+ * Monitor serial de una placa (solo admin): `alTexto` recibe lo que imprime la placa y `alEstado` si está conectada
+ * (null = no se pudo abrir o todavía no se sabe). Devuelve la función para cerrarlo.
+ */
+export function abrirMonitor(
+  deviceId: string,
+  alTexto: (texto: string) => void,
+  alEstado: (online: boolean | null) => void,
+): () => void {
+  const s = socket;
+  if (!s) {
+    alEstado(null);
+    return () => undefined;
+  }
+  // Se vuelve a abrir en cada reconexión (el servidor olvida quién miraba)
+  const abrir = () =>
+    s.timeout(8000).emit("monitor:abrir", { deviceId }, (err: Error | null, r?: { ok: boolean; online?: boolean }) =>
+      alEstado(err || !r?.ok ? null : !!r.online),
+    );
+  const linea = (d: { deviceId: string; texto: string }) => d.deviceId === deviceId && alTexto(d.texto);
+  const estado = (d: { deviceId: string; online: boolean }) => d.deviceId === deviceId && alEstado(d.online);
+  s.on("monitor:linea", linea);
+  s.on("monitor:estado", estado);
+  s.on("connect", abrir);
+  if (s.connected) abrir();
+  return () => {
+    s.off("monitor:linea", linea);
+    s.off("monitor:estado", estado);
+    s.off("connect", abrir);
+    s.emit("monitor:cerrar", { deviceId });
+  };
+}
+
 export function desconectarTiempoReal() {
   clearTimeout(reintento);
   appState?.remove();

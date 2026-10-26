@@ -10,7 +10,7 @@ namespace mqttmgr {
 struct Comando {
   char id[48];
   char cmd[24];
-  int8_t activo;  // campo "activo" de "ahorro": 1, 0 o -1 si no vino
+  int8_t activo;  // campo "activo" de "ahorro" y "monitor": 1, 0 o -1 si no vino
 };
 
 void configurar(const String& url, const String& user, const String& pass, const String& deviceId);
@@ -25,6 +25,8 @@ int publicarEstado(bool puertaAbierta, const String& ssid, int rssi, const Strin
 int publicarEvento(const EventoPuerta& e);
 int publicarTelemetria(int rssi, const bateria::Lectura& bat);
 int publicarAck(const char* id, bool ok, const char* error);
+// Texto del monitor serial (QoS 0, sin JSON)
+int publicarLog(const char* texto, size_t largo);
 
 bool tomarComando(Comando& c);
 bool tomarPublicado(int& msgId);

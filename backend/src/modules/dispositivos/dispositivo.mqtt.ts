@@ -6,6 +6,7 @@ import { prisma } from "../../core/prisma";
 import { alCambiarConexion, alRecibirMensaje, placaConectada, TipoMensaje } from "../../core/mqtt/broker";
 import { resolverAck } from "../../core/mqtt/comandos";
 import { emitirEstadoCasa, procesarEventoPuerta, registrarConexion, revisarBateria } from "../alarma/alarma.service";
+import { reenviarLog } from "./monitor";
 
 const esquemaState = z.object({
   online: z.boolean(),
@@ -146,6 +147,10 @@ async function manejar(deviceId: string, tipo: TipoMensaje, payload: Buffer) {
       await marcarOnline(deviceId, { ...(t.rssi !== undefined ? { wifiRssi: t.rssi } : {}), ...bateriaDe(t) });
       return;
     }
+    case "log":
+      // Texto del monitor serial: no se guarda, solo se reenvía a los admins que miran
+      reenviarLog(deviceId, payload.toString("utf8").slice(0, 4000));
+      return;
     case "ack": {
       const a = parsear(esquemaAck, payload, deviceId, tipo);
       if (a) resolverAck(a.id, a.ok, a.error ?? null);
@@ -158,8 +163,8 @@ let watchdog: NodeJS.Timeout | null = null;
 
 export function iniciarManejadoresMqtt() {
   alRecibirMensaje((deviceId, tipo, payload) => {
-    if (tipo === "ack") {
-      // Los ACK no esperan la cola: alguien puede estar esperando la respuesta
+    if (tipo === "ack" || tipo === "log") {
+      // Los ACK no esperan la cola (alguien espera la respuesta), ni el monitor (no toca la base)
       void manejar(deviceId, tipo, payload);
       return;
     }

@@ -16,6 +16,7 @@
 #include <esp_task_wdt.h>
 #include <esp_mac.h>
 #include "config.h"
+#include "consola.h"
 #include "almacen.h"
 #include "led.h"
 #include "sensor.h"
@@ -80,7 +81,7 @@ void progreso(const char* fase) {
   d["r"] = "progreso";
   d["fase"] = fase;
   responder(d);
-  Serial.printf("[setup] %s\n", fase);
+  consola.printf("[setup] %s\n", fase);
 }
 
 void error(const char* fase, const char* motivo) {
@@ -89,7 +90,7 @@ void error(const char* fase, const char* motivo) {
   d["fase"] = fase;
   d["motivo"] = motivo;
   responder(d);
-  Serial.printf("[setup] error %s: %s\n", fase, motivo);
+  consola.printf("[setup] error %s: %s\n", fase, motivo);
 }
 
 void abrirModoConfig(unsigned long duracion) {
@@ -217,7 +218,7 @@ void avanzarTrabajo() {
       }
       almacen::guardarWifi(trabajo.ssid, trabajo.pass);
       red::conectar(trabajo.ssid, trabajo.pass);  // deja activa la reconexión normal
-      Serial.printf("[wifi] conectada a %s, IP %s\n", trabajo.ssid.c_str(), red::ip().c_str());
+      consola.printf("[wifi] conectada a %s, IP %s\n", trabajo.ssid.c_str(), red::ip().c_str());
       progreso("wifi_ok");
       if (trabajo.codigo.length()) {
         trabajo.fase = Fase::VINCULAR;
@@ -234,7 +235,7 @@ void avanzarTrabajo() {
       if (trabajo.intentos == 0) progreso("vinculando");
       red::RespuestaProvision p = red::provisionar(almacen::apiUrl(), deviceId, trabajo.codigo, almacen::secretoHex());
       if (p.http <= 0 && ++trabajo.intentos < PROVISION_INTENTOS) {
-        Serial.printf("[setup] reintento de vinculacion %d\n", trabajo.intentos + 1);
+        consola.printf("[setup] reintento de vinculacion %d\n", trabajo.intentos + 1);
         trabajo.desde = millis() + PROVISION_ESPERA_MS;
         return;
       }
@@ -279,13 +280,51 @@ void avanzarTrabajo() {
 }
 
 // ---------------------------------------------------------------------
+// Monitor serial
+// ---------------------------------------------------------------------
+unsigned long ultimaLineaBateria = 0;
+
+void imprimirBateria(const bateria::Lectura& bat) {
+  if (bat.pct >= 0) consola.printf("[bateria] %d mV (%d %%)\n", bat.mv, bat.pct);
+  else consola.printf("[bateria] sin pila: enchufado por USB (lectura %d mV)\n", bat.mv);
+}
+
+const char* motivoReinicio() {
+  switch (esp_reset_reason()) {
+    case ESP_RST_POWERON: return "se prendio (corriente)";
+    case ESP_RST_SW: return "reinicio pedido";
+    case ESP_RST_PANIC: return "error del programa";
+    case ESP_RST_INT_WDT:
+    case ESP_RST_TASK_WDT:
+    case ESP_RST_WDT: return "se colgo (watchdog)";
+    case ESP_RST_BROWNOUT: return "le falto tension (pila baja o fuente debil)";
+    case ESP_RST_DEEPSLEEP: return "salio de reposo";
+    case ESP_RST_EXT: return "boton de reset";
+    default: return "desconocido";
+  }
+}
+
+// Lo primero que ve el admin al abrir el monitor
+void imprimirResumen() {
+  unsigned long seg = millis() / 1000;
+  consola.printf("\n===== Monitor de %s (v%s) =====\n", deviceId.c_str(), FW_VERSION);
+  consola.printf("Prendida hace %luh %02lum %02lus | ultimo reinicio: %s\n", seg / 3600, (seg / 60) % 60, seg % 60,
+                 motivoReinicio());
+  consola.printf("WiFi: %s (%d dBm) IP %s | memoria libre: %u bytes\n", red::ssidActual().c_str(), red::rssi(),
+                 red::ip().c_str(), static_cast<unsigned>(ESP.getFreeHeap()));
+  consola.printf("Puerta: %s | modo ahorro: %s\n", sensor::puertaAbierta() ? "ABIERTA" : "CERRADA",
+                 energia::enAhorro() ? "si" : "no");
+  imprimirBateria(bateria::medir());
+}
+
+// ---------------------------------------------------------------------
 // Comandos por MQTT
 // ---------------------------------------------------------------------
 void comandosMqtt() {
   mqttmgr::Comando c;
   while (mqttmgr::tomarComando(c)) {
     String cmd = c.cmd;
-    Serial.printf("[mqtt] comando %s\n", c.cmd);
+    consola.printf("[mqtt] comando %s\n", c.cmd);
     if (cmd == "ping") {
       mqttmgr::publicarAck(c.id, true, nullptr);
       publicarEstado();
@@ -296,6 +335,12 @@ void comandosMqtt() {
       // Hibernación: alarma desarmada (o dispositivo afuera del armado) -> ahorro; armada -> normal
       energia::pedirAhorro(c.activo == 1);
       mqttmgr::publicarAck(c.id, true, nullptr);
+    } else if (cmd == "monitor" && c.activo >= 0) {
+      // Monitor serial desde el panel del admin: mientras esté abierto se renueva cada minuto
+      bool estaba = monitor::activo();
+      monitor::activar(c.activo == 1);
+      mqttmgr::publicarAck(c.id, true, nullptr);
+      if (c.activo == 1 && !estaba) imprimirResumen();
     } else if (cmd == "reboot") {
       mqttmgr::publicarAck(c.id, true, nullptr);
       programarReinicio(1500, false);
@@ -312,7 +357,7 @@ void comandosMqtt() {
 // Eventos de puerta
 // ---------------------------------------------------------------------
 void registrarCambioPuerta(bool abierta) {
-  Serial.printf("[puerta] %s\n", abierta ? "ABIERTA" : "CERRADA");
+  consola.printf("[puerta] %s\n", abierta ? "ABIERTA" : "CERRADA");
   if (almacen::vinculada()) {
     EventoPuerta e;
     e.seq = almacen::siguienteSeq();
@@ -353,10 +398,10 @@ void revisarBoton() {
     unsigned long dur = millis() - botonDesde;
     botonDesde = 0;
     if (dur >= BOTON_RESET_MS) {
-      Serial.println("[boton] restablecer de fabrica");
+      consola.println("[boton] restablecer de fabrica");
       programarReinicio(100, true);
     } else if (dur >= BOTON_CONFIG_MS) {
-      Serial.println("[boton] modo configuracion");
+      consola.println("[boton] modo configuracion");
       abrirModoConfig(MODO_CONFIG_MS);
     }
   }
@@ -377,7 +422,8 @@ void actualizarLed() {
 void setup() {
   Serial.begin(115200);
   delay(200);
-  Serial.printf("\n===== Seguridad Residencial v%s =====\n", FW_VERSION);
+  monitor::iniciar();
+  consola.printf("\n===== Seguridad Residencial v%s =====\n", FW_VERSION);
 
   esp_task_wdt_config_t wdt = {};
   wdt.timeout_ms = WATCHDOG_MS;
@@ -392,7 +438,7 @@ void setup() {
   almacen::iniciar();
   red::iniciar();
   deviceId = leerDeviceId();
-  Serial.printf("deviceId: %s | vinculada: %s | eventos en cola: %u\n", deviceId.c_str(),
+  consola.printf("deviceId: %s | vinculada: %s | eventos en cola: %u\n", deviceId.c_str(),
                 almacen::vinculada() ? "si" : "no", static_cast<unsigned>(almacen::colaTamano()));
 
   configTzTime(ZONA_HORARIA, "pool.ntp.org", "time.google.com");
@@ -401,7 +447,7 @@ void setup() {
   iniciarMqtt();
 
   if (!almacen::ssid().length() || !almacen::vinculada()) {
-    Serial.println("Sin configurar: Bluetooth abierto esperando la app");
+    consola.println("Sin configurar: Bluetooth abierto esperando la app");
     abrirModoConfig(INDEFINIDO);
   }
 }
@@ -432,20 +478,26 @@ void loop() {
 
   // MQTT
   if (mqttmgr::recienConectado()) {
-    Serial.println("[mqtt] conectado");
+    consola.println("[mqtt] conectado");
     publicarEstado();
   }
   comandosMqtt();
   enviarCola();
   if (mqttmgr::conectado() && millis() - ultimaTelemetria > TELEMETRIA_MS) {
     ultimaTelemetria = millis();
+    ultimaLineaBateria = millis();
     bateria::Lectura bat = bateria::medir();
-    if (bat.pct >= 0) Serial.printf("[bateria] %d mV (%d %%)\n", bat.mv, bat.pct);
+    imprimirBateria(bat);
     mqttmgr::publicarTelemetria(red::rssi(), bat);
+  } else if (monitor::activo() && millis() - ultimaLineaBateria > MONITOR_BATERIA_MS) {
+    // Con el monitor abierto se ve la batería más seguido (para seguir cómo baja)
+    ultimaLineaBateria = millis();
+    imprimirBateria(bateria::medir());
   }
+  monitor::enviarPendiente();
   // El servidor rechaza nuestras credenciales: la placa fue desvinculada
   if (almacen::vinculada() && mqttmgr::rechazos() >= MQTT_RECHAZOS_DESVINCULAR) {
-    Serial.println("[mqtt] credenciales rechazadas: placa desvinculada");
+    consola.println("[mqtt] credenciales rechazadas: placa desvinculada");
     mqttmgr::detener();
     almacen::borrarVinculacion();
     almacen::colaVaciar();
@@ -455,7 +507,7 @@ void loop() {
 
   // WiFi caído mucho tiempo (¿cambiaron el router?): abre el Bluetooth para reconfigurar
   if (!modoConfig() && red::caidoHace() > WIFI_CAIDO_ABRE_BLE_MS) {
-    Serial.println("WiFi caido hace 5 min: Bluetooth abierto");
+    consola.println("WiFi caido hace 5 min: Bluetooth abierto");
     abrirModoConfig(MODO_CONFIG_MS);
     bleAbiertoPorCaida = true;
   }
@@ -475,7 +527,7 @@ void loop() {
 
   if (reinicioEn && (long)(millis() - reinicioEn) > 0) {
     if (borrarAlReiniciar) almacen::borrarTodo();
-    Serial.println("Reiniciando...");
+    consola.println("Reiniciando...");
     Serial.flush();
     ESP.restart();
   }

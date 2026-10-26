@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { FlatList, RefreshControl } from "react-native";
-import { Appbar, Button, Dialog, List, Portal, SegmentedButtons, Snackbar, Text } from "react-native-paper";
+import { Appbar, Button, Dialog, IconButton, List, Portal, SegmentedButtons, Snackbar, Text } from "react-native-paper";
+import { router } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { admin, placas } from "@/api/endpoints";
 import { mensajeDeError } from "@/api/cliente";
@@ -36,6 +37,10 @@ export default function PlacasAdmin() {
     }
   };
 
+  // Monitor serial por internet: lo mismo que el Monitor Serie del Arduino IDE, sin cable
+  const verMonitor = (d: DispositivoAdmin) =>
+    router.push({ pathname: "/admin/monitor/[deviceId]", params: { deviceId: d.deviceId, nombre: d.nombre ?? d.deviceId } });
+
   return (
     <>
       <Appbar.Header>
@@ -68,6 +73,9 @@ export default function PlacasAdmin() {
               description={`${d.deviceId} · ${d.casaId ? (d.online ? "Online" : "Offline") : "Sin casa"} · ${d.wifiSsid ?? "—"} · v${d.firmwareVersion ?? "?"} · ${haceCuanto(d.ultimaConexion)}`}
               left={(p) => <List.Icon {...p} icon={d.online ? "chip" : "chip"} color={d.online ? "#2E7D32" : d.casaId ? "#C62828" : undefined} />}
               onPress={d.casaId ? () => setElegida(d) : undefined}
+              right={() => (
+                <IconButton icon="console" accessibilityLabel="Monitor" onPress={() => verMonitor(d)} />
+              )}
             />
           )}
         />
@@ -80,6 +88,14 @@ export default function PlacasAdmin() {
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setElegida(null)}>Cancelar</Button>
+            <Button
+              onPress={() => {
+                if (elegida) verMonitor(elegida);
+                setElegida(null);
+              }}
+            >
+              Monitor
+            </Button>
             <Button onPress={() => accion("desvincular")} disabled={trabajando}>
               Desvincular
             </Button>

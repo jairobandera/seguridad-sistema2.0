@@ -100,7 +100,7 @@ Al vincular, el backend reinicia `ultimoSeq` a 0.
 El broker MQTT está **incluido en el backend** (aedes): en producción las placas se conectan por
 `wss://<api>/mqtt` (TLS de Render); en la red local también por TCP (`mqtt://<ip-pc>:1884`).
 Sin acceso anónimo: usuario = `deviceId` = clientId, clave entregada al vincularse (el backend guarda
-solo su hash). ACL: la placa publica solo en `dev/{deviceId}/state|event|telemetry|ack` y se suscribe
+solo su hash). ACL: la placa publica solo en `dev/{deviceId}/state|event|telemetry|ack|log` y se suscribe
 solo a `dev/{deviceId}/cmd`.
 
 | Topic | Sentido | QoS | Retain | Payload |
@@ -109,6 +109,7 @@ solo a `dev/{deviceId}/cmd`.
 | `dev/{id}/state` (LWT) | broker → | 1 | sí | `{"online":false}` |
 | `dev/{id}/event` | placa → | 1 | no | `{"seq":12,"tipo":"PUERTA_ABIERTA"\|"PUERTA_CERRADA","ts":1730000000}` |
 | `dev/{id}/telemetry` | placa → | 0 | no | `{"rssi":-61,"uptime":3600,"heap":120000,"bat":85,"mv":4010}` cada 60 s |
+| `dev/{id}/log` | placa → | 0 | no | Texto plano (no JSON): lo que imprime la placa, solo con el monitor activo. Trozos de hasta 900 bytes cada ~500 ms |
 | `dev/{id}/cmd` | backend → | 1 | no | `{"id":"<uuid>","cmd":"factory_reset"\|"open_ble"\|"reboot"\|"ping"}` · `{"id","cmd":"ahorro","activo":bool}` |
 | `dev/{id}/ack` | placa → | 1 | no | `{"id":"<uuid>","ok":true,"error":null}` |
 
@@ -126,6 +127,12 @@ solo a `dev/{deviceId}/cmd`.
 - Batería baja: el backend avisa por push a la familia una vez al 20 % (`BATERIA_BAJA`, INFO) y otra al 10 %
   (ALERTA). Vuelve a avisar recién después de superar el 30 % (la cargaron).
 - `factory_reset`: la placa manda el `ack`, borra todo y reinicia en modo configuración.
+- `monitor` (`{"activo":bool}`): monitor serial por internet. Con `true` la placa manda por `log` lo último que
+  imprimió (buffer de 3 KB, incluye el arranque) y todo lo nuevo, más un resumen (versión, tiempo prendido, motivo
+  del último reinicio, WiFi, memoria, puerta, batería) y la batería cada 10 s. Se apaga sola a los 3 min: el
+  backend lo renueva cada minuto mientras algún admin mira, y manda `false` cuando se va el último.
+  Socket.IO (solo ADMIN): `monitor:abrir {deviceId}` → ack `{ok, online}`; `monitor:cerrar {deviceId}`;
+  el servidor emite `monitor:linea {deviceId, texto}` y `monitor:estado {deviceId, online}`.
 - `ahorro` (hibernación): el backend lo manda al armar/desarmar y cada vez que la placa se conecta.
   `activo: true` con la alarma desarmada o si el dispositivo quedó afuera del armado parcial → CPU a 80 MHz, WiFi en
   ahorro máximo y LED de "OK" apagado; `false` → modo normal. El sensor, el MQTT y la batería siguen funcionando igual.

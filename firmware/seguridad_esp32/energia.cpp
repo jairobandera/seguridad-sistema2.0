@@ -1,4 +1,5 @@
 #include "energia.h"
+#include "consola.h"
 #include <WiFi.h>
 #include "config.h"
 
@@ -15,7 +16,7 @@ void aplicar() {
   setCpuFrequencyMhz(ahorro ? CPU_MHZ_AHORRO : CPU_MHZ_NORMAL);
   // Ahorro máximo: la radio duerme entre beacons del router (más demora para recibir, nada para enviar)
   WiFi.setSleep(ahorro ? WIFI_PS_MAX_MODEM : WIFI_PS_MIN_MODEM);
-  Serial.printf("[energia] %s (CPU %lu MHz)\n", ahorro ? "ahorro activado" : "modo normal", static_cast<unsigned long>(getCpuFrequencyMhz()));
+  consola.printf("[energia] %s (CPU %lu MHz)\n", ahorro ? "ahorro activado" : "modo normal", static_cast<unsigned long>(getCpuFrequencyMhz()));
 }
 }  // namespace
 

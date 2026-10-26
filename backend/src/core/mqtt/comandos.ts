@@ -3,7 +3,8 @@ import { logger } from "../logger";
 import { placaConectada, publicarComando } from "./broker";
 
 // "ahorro": hibernación con la alarma desarmada ({ activo: boolean }, ver firmware/energia.h)
-export type Comando = "factory_reset" | "open_ble" | "reboot" | "ping" | "ahorro";
+// "monitor": monitor serial por internet ({ activo: boolean }, ver firmware/consola.h)
+export type Comando = "factory_reset" | "open_ble" | "reboot" | "ping" | "ahorro" | "monitor";
 
 interface Respuesta {
   ok: boolean;
