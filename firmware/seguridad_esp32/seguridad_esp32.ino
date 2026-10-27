@@ -307,7 +307,7 @@ const char* motivoReinicio() {
 // Lo primero que ve el admin al abrir el monitor
 void imprimirResumen() {
   unsigned long seg = millis() / 1000;
-  consola.printf("\n===== Monitor de %s (v%s) =====\n", deviceId.c_str(), FW_VERSION);
+  consola.printf("\n===== Monitor de %s (v%s, %s) =====\n", deviceId.c_str(), FW_VERSION, PLACA_NOMBRE);
   consola.printf("Prendida hace %luh %02lum %02lus | ultimo reinicio: %s\n", seg / 3600, (seg / 60) % 60, seg % 60,
                  motivoReinicio());
   consola.printf("WiFi: %s (%d dBm) IP %s | memoria libre: %u bytes\n", red::ssidActual().c_str(), red::rssi(),
@@ -423,7 +423,7 @@ void setup() {
   Serial.begin(115200);
   delay(200);
   monitor::iniciar();
-  consola.printf("\n===== Seguridad Residencial v%s =====\n", FW_VERSION);
+  consola.printf("\n===== Seguridad Residencial v%s (%s) =====\n", FW_VERSION, PLACA_NOMBRE);
 
   esp_task_wdt_config_t wdt = {};
   wdt.timeout_ms = WATCHDOG_MS;

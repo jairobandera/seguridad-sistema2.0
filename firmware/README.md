@@ -1,5 +1,28 @@
 # Firmware ESP32 — Seguridad Residencial v2
 
+## Placas compatibles (un solo firmware)
+El mismo firmware sirve para las dos placas: al compilar toma los pines y ajustes según la placa elegida en
+**Herramientas → Placa** (ver `config.h`).
+
+| | ESP32 (DevKit) | ESP32-C3 SuperMini |
+|---|---|---|
+| Placa en Arduino IDE | ESP32 Dev Module | ESP32C3 Dev Module + **USB CDC On Boot: Enabled** |
+| Partition Scheme | Minimal SPIFFS | Minimal SPIFFS |
+| Sensor de la puerta (reed a GND) | GPIO14 | GPIO10 |
+| Batería (divisor 100k/100k) | GPIO34 | GPIO3 |
+| Botón BOOT | GPIO0 | GPIO9 |
+| LED | GPIO2 | GPIO8 (se prende con LOW) |
+| 0 % de batería (pila directo al pin 5V) | 3800 mV | 3500 mV (a confirmar con el monitor) |
+
+En la C3 el WiFi va a 8,5 dBm: muchas SuperMini no conectan a potencia máxima por la antena. Si la placa no
+aparece para subir el programa: mantené apretado **BOOT**, enchufala y soltalo.
+
+### Pilas: una 18650 o dos en **paralelo**, nunca en serie
+- **Dos en paralelo** (+ con +, − con −): misma tensión (4,2 V), el doble de duración. Sirve para las dos placas
+  sin cambiar nada. Ponelas con la misma carga.
+- **Dos en serie** (8,4 V): **no**. En la C3 quema el regulador (aguanta ~6 V) y en las dos placas el divisor
+  llevaría 4,2 V al pin de la batería (el máximo es ~3,3 V).
+
 ## Conexiones (las mismas de siempre)
 | Elemento | Pin |
 |---|---|

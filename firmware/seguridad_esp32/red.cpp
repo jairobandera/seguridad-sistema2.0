@@ -45,12 +45,19 @@ void alEvento(arduino_event_id_t evento, arduino_event_info_t info) {
   }
 }
 
+void aplicarPotencia() {
+#ifdef WIFI_POTENCIA
+  WiFi.setTxPower(WIFI_POTENCIA);
+#endif
+}
+
 void comenzar(const String& ssid, const String& pass) {
   WiFi.disconnect(false, true);
   delay(100);
   conectado_ = false;
   fallosClave_ = fallosSinRed_ = 0;
   WiFi.begin(ssid.c_str(), pass.c_str());
+  aplicarPotencia();
 }
 }  // namespace
 
@@ -59,6 +66,7 @@ namespace red {
 void iniciar() {
   WiFi.persistent(false);  // las credenciales las guardamos nosotros
   WiFi.mode(WIFI_STA);
+  aplicarPotencia();
   WiFi.setAutoReconnect(true);
   WiFi.setSleep(true);     // necesario para que convivan WiFi y Bluetooth
   WiFi.onEvent(alEvento);

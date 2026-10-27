@@ -7,18 +7,43 @@
 #define FW_VERSION "2.1.0"
 
 // ---------------------------------------------------------------------
-// Pines (los mismos del firmware anterior)
+// Pines y ajustes de cada placa. Un solo firmware para las dos: se elige solo según la placa
+// seleccionada en Arduino IDE (Herramientas > Placa). Ver firmware/README.md.
 // ---------------------------------------------------------------------
+#if CONFIG_IDF_TARGET_ESP32C3
+// ESP32-C3 SuperMini ("ESP32C3 Dev Module", con "USB CDC On Boot: Enabled")
+#define PLACA_NOMBRE "ESP32-C3 SuperMini"
+#define SENSOR_PIN 10        // Reed switch a GND, con INPUT_PULLUP: imán cerca = LOW = puerta cerrada
+#define BOTON_PIN 9          // Botón BOOT de la placa (LOW = apretado)
+#define LED_PIN 8            // LED azul de la placa
+#define LED_ENCENDIDO LOW    // en la SuperMini el LED se prende con LOW
+// Batería: B+ -> 100k -> GPIO3 -> 100k -> GND. GPIO3 es ADC1 (funciona con el WiFi prendido)
+#define BATERIA_PIN 3
+#define CPU_MHZ_NORMAL 160   // el máximo del C3
+// Muchas SuperMini tienen la antena mal diseñada y no conectan al WiFi a potencia máxima
+#define WIFI_POTENCIA WIFI_POWER_8_5dBm
+// Pila directo al pin 5V: su regulador necesita poco margen (A CONFIRMAR con el monitor: si se apaga con
+// más de ~10 %, subilo)
+#define BATERIA_MV_VACIA 3500
+#else
+// ESP32 clásico (DevKit de 30/38 pines, "ESP32 Dev Module")
+#define PLACA_NOMBRE "ESP32"
 #define SENSOR_PIN 14        // Reed switch a GND, con INPUT_PULLUP: imán cerca = LOW = puerta cerrada
 #define BOTON_PIN 0          // Botón BOOT de la placa (LOW = apretado)
 #define LED_PIN 2            // LED azul de la placa
 #define LED_ENCENDIDO HIGH   // Si tu placa enciende el LED con LOW, cambiá esto
+// Batería: B+ -> 100k -> GPIO34 -> 100k -> GND. GPIO34 es ADC1 (funciona con el WiFi prendido) y solo entrada
+#define BATERIA_PIN 34
+#define CPU_MHZ_NORMAL 240
+// Tensión a la que la placa se apaga = 0 %. Depende de cómo llega la pila a la placa:
+//   3800: pila soldada directo al pin V5 (el regulador AMS1117 necesita ~1 V de más: se apaga con media pila)
+//   3300: pila -> TP4056 -> elevador MT3608 a 5 V -> pin V5 (aprovecha toda la pila)
+#define BATERIA_MV_VACIA 3800
+#endif
 
 // ---------------------------------------------------------------------
-// Batería 18650: B+ -> 100k -> GPIO34 -> 100k -> GND (ver firmware/README.md)
-// GPIO34 es ADC1 (funciona con el WiFi prendido) y solo entrada.
+// Batería 18650 (ver firmware/README.md)
 // ---------------------------------------------------------------------
-#define BATERIA_PIN 34
 #define BATERIA_DIVISOR 2.0f       // (R1 + R2) / R2: con dos resistencias iguales es 2.0
 // Ajuste fino con el multímetro: (lo que mide el multímetro) / (lo que dice "[bateria] ... mV"), ej. 1.03f
 #define BATERIA_CALIBRACION 1.0f
@@ -26,10 +51,6 @@
 #define BATERIA_INTERVALO_MS 250UL // una muestra cada 250 ms...
 #define BATERIA_VENTANA 40         // ...en una ventana de 10 s (descarta las caídas cuando transmite el WiFi)
 #define BATERIA_HISTERESIS_PCT 3   // el % informado cambia recién con 3 puntos de diferencia
-// Tensión a la que la placa se apaga = 0 %. Depende de cómo llega la pila a la placa:
-//   3800: pila soldada directo al pin V5 (el regulador de la placa necesita ~1 V de más: se apaga con media pila)
-//   3300: pila -> TP4056 -> elevador MT3608 a 5 V -> pin V5 (aprovecha toda la pila)
-#define BATERIA_MV_VACIA 3800
 #define BATERIA_MIN_MV 3000        // por debajo: no hay batería (o está agotada y la placa ya se apaga)
 #define BATERIA_MAX_MV 4400        // por encima: no es una 18650 (pin al aire o mal conectado)
 #define BATERIA_RUIDO_MAX_MV 300   // dispersión máxima de las muestras para considerarla una batería real
@@ -65,7 +86,7 @@
 #define MQTT_RECHAZOS_DESVINCULAR 20                // CONNACK "no autorizado" seguidos (~2 min) -> se considera desvinculada
 
 // Hibernación con la alarma desarmada (ver energia.h)
-#define CPU_MHZ_NORMAL 240
+// (CPU_MHZ_NORMAL depende de la placa: arriba)
 #define CPU_MHZ_AHORRO 80
 
 #define COLA_MAX_EVENTOS 32
