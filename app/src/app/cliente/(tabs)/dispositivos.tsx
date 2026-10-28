@@ -114,6 +114,17 @@ export default function Dispositivos() {
     }
   };
 
+  // El dispositivo no está en internet: se lo restablece de cerca, por Bluetooth (ver asistente, modo "reset")
+  const restablecerPorBluetooth = () => {
+    if (!elegido) return;
+    const d = elegido;
+    cerrar();
+    router.push({
+      pathname: "/cliente/asistente",
+      params: { casaId: actual.id, modo: "reset", dispositivoId: d.id, deviceId: d.deviceId },
+    });
+  };
+
   const desvincular = async () => {
     if (!elegido) return;
     setTrabajando(elegido.id);
@@ -158,7 +169,9 @@ export default function Dispositivos() {
                 </Text>
               </View>
               <Text variant="bodyMedium" style={{ marginTop: 4, color: tema.colors.onSurfaceVariant }}>
-                {d.online ? "Conectado" : "Sin conexión. Revisá que esté enchufado o con batería cargada y que el WiFi funcione; si cambiaste el router, usá “Cambiar WiFi”."}
+                {d.online
+                  ? "Conectado"
+                  : "Sin conexión. Revisá que esté enchufado o con batería cargada. Si se cortó internet, vuelve solo. Si cambiaste el WiFi o su clave, tocá “Cambiar WiFi” estando cerca: a los 5 minutos sin WiFi el dispositivo abre su Bluetooth solo."}
               </Text>
             </Card.Content>
             <List.Item
@@ -191,7 +204,8 @@ export default function Dispositivos() {
                   Nombre
                 </Button>
                 <Button
-                  mode="contained-tonal"
+                  // Sin conexión, cambiar el WiFi por Bluetooth es lo que lo arregla
+                  mode={d.online ? "contained-tonal" : "contained"}
                   icon="wifi-cog"
                   onPress={() => cambiarWifi(d)}
                   loading={trabajando === d.id && !dialogo}
@@ -293,13 +307,16 @@ export default function Dispositivos() {
           <Dialog.Title>El dispositivo no respondió</Dialog.Title>
           <Dialog.Content>
             <Text>
-              Puede estar sin conexión. Podés desvincularlo igual y, cuando lo tengas a mano, mantener apretado su botón BOOT 15 segundos para dejarlo de fábrica.
+              Puede estar sin conexión. Si estás cerca del dispositivo, restablecelo por Bluetooth. Si no, podés desvincularlo igual y, cuando lo tengas a mano, mantener apretado su botón BOOT 15 segundos para dejarlo de fábrica.
             </Text>
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={cerrar}>Cancelar</Button>
             <Button textColor={colores.peligro} onPress={desvincular} loading={trabajando !== null}>
               Desvincular igual
+            </Button>
+            <Button mode="contained" onPress={restablecerPorBluetooth} disabled={trabajando !== null}>
+              Por Bluetooth
             </Button>
           </Dialog.Actions>
         </Dialog>

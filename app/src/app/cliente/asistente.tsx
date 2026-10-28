@@ -18,7 +18,7 @@ import {
 } from "@/ble/placa";
 import { colores } from "@/tema";
 
-type Paso = "intro" | "buscar" | "conectando" | "redes" | "clave" | "configurando" | "listo" | "error";
+type Paso = "intro" | "buscar" | "conectando" | "redes" | "clave" | "configurando" | "restableciendo" | "listo" | "error";
 
 // Nombres rápidos para el dispositivo nuevo (también se puede escribir otro)
 const NOMBRES_SUGERIDOS = ["Puerta principal", "Puerta trasera", "Ventana", "Garage", "Portón"];
@@ -34,9 +34,19 @@ const FASES: { fase: string; texto: string; soloNueva?: boolean }[] = [
 export default function Asistente() {
   const tema = useTheme();
   const qc = useQueryClient();
-  const p = useLocalSearchParams<{ casaId: string; modo: "nueva" | "wifi"; dispositivoId?: string; deviceId?: string; bleAbierto?: string }>();
+  // nueva: agregar · wifi: cambiar el WiFi · reset: dejarlo de fábrica por Bluetooth (no está en internet)
+  const p = useLocalSearchParams<{
+    casaId: string;
+    modo: "nueva" | "wifi" | "reset";
+    dispositivoId?: string;
+    deviceId?: string;
+    bleAbierto?: string;
+  }>();
   const casaId = Number(p.casaId);
   const modoWifi = p.modo === "wifi";
+  const modoReset = p.modo === "reset";
+  // Un dispositivo que ya es de la casa: se busca solo ese
+  const conocido = modoWifi || modoReset;
 
   const [paso, setPaso] = useState<Paso>("intro");
   const [error, setError] = useState<string | null>(null);
@@ -81,7 +91,7 @@ export default function Asistente() {
     detenerBusqueda.current = buscarPlacas(
       (placa) =>
         setEncontradas((l) => {
-          if (modoWifi && p.deviceId && !placa.nombre.endsWith(p.deviceId.slice(-4))) return l;
+          if (conocido && p.deviceId && !placa.nombre.endsWith(p.deviceId.slice(-4))) return l;
           return l.some((x) => x.id === placa.id) ? l : [...l, placa];
         }),
       (msg) => fallar(`Error de Bluetooth: ${msg}`),
@@ -90,7 +100,7 @@ export default function Asistente() {
       detenerBusqueda.current?.();
       setBuscando(false);
     }, 15000);
-  }, [modoWifi, p.deviceId]);
+  }, [conocido, p.deviceId]);
 
   const elegirPlaca = async (placa: PlacaEncontrada) => {
     detenerBusqueda.current?.();
@@ -102,10 +112,11 @@ export default function Asistente() {
       await c.conectar(placa.id);
       conexion.current = c;
       const info = await c.info();
-      if (modoWifi && p.deviceId && info.id !== p.deviceId) {
+      if (conocido && p.deviceId && info.id !== p.deviceId) {
         await c.desconectar();
         return fallar("Ese no es el dispositivo que querés configurar. Elegí el que corresponde.");
       }
+      if (modoReset) return restablecer(c);
       if (!modoWifi && info.vinculada) {
         await c.desconectar();
         return fallar(
@@ -116,6 +127,23 @@ export default function Asistente() {
       cargarRedes();
     } catch (e) {
       fallar(`No se pudo conectar con el dispositivo. Acercate y volvé a intentar. (${mensajeDeError(e)})`);
+    }
+  };
+
+  const restablecer = async (c: ConexionPlaca) => {
+    setPaso("restableciendo");
+    try {
+      const { token } = await placas.tokenConfig(Number(p.dispositivoId));
+      // Al confirmar, la placa se reinicia y corta el Bluetooth: no es un error
+      c.alDesconectar = undefined;
+      await c.restablecer(token);
+      await c.desconectar();
+      await placas.desvincular(Number(p.dispositivoId));
+      qc.invalidateQueries({ queryKey: ["casas"] });
+      setPaso("listo");
+    } catch (e) {
+      await c.desconectar();
+      fallar(`No se pudo restablecer el dispositivo. (${mensajeDeError(e)})`);
     }
   };
 
@@ -150,7 +178,7 @@ export default function Asistente() {
     }
   };
 
-  const titulo = modoWifi ? "Cambiar WiFi del dispositivo" : "Agregar dispositivo";
+  const titulo = modoReset ? "Restablecer por Bluetooth" : modoWifi ? "Cambiar WiFi del dispositivo" : "Agregar dispositivo";
 
   return (
     <>
@@ -176,17 +204,25 @@ export default function Asistente() {
                 </>
               ) : null}
               <Text variant="titleMedium">Antes de empezar</Text>
-              {modoWifi ? (
+              {modoReset ? (
+                <Paso1 icono="restore-alert" texto="El dispositivo va a borrar su WiFi y quedar desvinculado de tu casa. Para volver a usarlo, agregalo de nuevo." />
+              ) : null}
+              {conocido ? (
                 p.bleAbierto === "1" ? (
                   <Paso1 icono="check-circle" texto="El dispositivo ya abrió su Bluetooth (su luz parpadea rápido)." />
                 ) : (
-                  <Paso1 icono="gesture-tap-hold" texto="Mantené apretado el botón BOOT del dispositivo 5 segundos, hasta que la luz parpadee rápido." />
+                  <Paso1
+                    icono="gesture-tap-hold"
+                    texto="Si está sin WiFi hace más de 5 minutos, ya abrió su Bluetooth solo (su luz parpadea rápido). Si no, mantené apretado su botón BOOT 5 segundos."
+                  />
                 )
               ) : (
                 <Paso1 icono="power-plug" texto="Enchufá el dispositivo. Su luz azul tiene que parpadear rápido." />
               )}
               <Paso1 icono="bluetooth" texto="Prendé el Bluetooth del celular y quedate cerca del dispositivo." />
-              <Paso1 icono="wifi" texto="Tené a mano la clave de tu WiFi. El dispositivo solo funciona con redes de 2,4 GHz." />
+              {!modoReset ? (
+                <Paso1 icono="wifi" texto="Tené a mano la clave de tu WiFi. El dispositivo solo funciona con redes de 2,4 GHz." />
+              ) : null}
             </Card.Content>
             <Card.Actions>
               <Button mode="contained" onPress={buscar} disabled={!modoWifi && !nombre.trim()}>
@@ -216,6 +252,7 @@ export default function Asistente() {
         ) : null}
 
         {paso === "conectando" ? <Esperando texto="Conectando con el dispositivo..." /> : null}
+        {paso === "restableciendo" ? <Esperando texto="Restableciendo el dispositivo..." /> : null}
 
         {paso === "redes" ? (
           <Card>
@@ -300,10 +337,10 @@ export default function Asistente() {
           <View style={estilos.centro}>
             <Icon source="check-decagram" size={96} color={colores.ok} />
             <Text variant="headlineSmall" style={{ marginTop: 16, textAlign: "center" }}>
-              {modoWifi ? "¡WiFi actualizado!" : `¡Listo! ${nombre.trim()} quedó vinculado`}
+              {modoReset ? "Quedó de fábrica y desvinculado" : modoWifi ? "¡WiFi actualizado!" : `¡Listo! ${nombre.trim()} quedó vinculado`}
             </Text>
             <Text style={{ marginTop: 8, textAlign: "center", color: tema.colors.onSurfaceVariant }}>
-              Ya podés armar la alarma desde el inicio.
+              {modoReset ? "Para volver a usarlo, agregalo de nuevo desde Dispositivos." : "Ya podés armar la alarma desde el inicio."}
             </Text>
             <Button mode="contained" style={{ marginTop: 24 }} onPress={() => router.navigate("/cliente")}>
               Ir al inicio
