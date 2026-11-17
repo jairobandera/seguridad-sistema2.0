@@ -1,8 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 
 /**
- * Conexión a MySQL. En producción (Aiven) la DATABASE_URL lleva
- * `?sslaccept=strict&sslcert=./ca.pem` y `scripts/escribir-ca.js` crea
- * prisma/ca.pem desde la variable DATABASE_CA_CERT antes de arrancar.
+ * Conexión a PostgreSQL (Supabase). Cada entorno usa su propio esquema con `?schema=`:
+ * guardiel (producción), desarrollo (tu PC) y pruebas (los tests, se borra en cada corrida).
  */
 export const prisma = new PrismaClient({ log: ["error", "warn"] });

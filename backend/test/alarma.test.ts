@@ -4,7 +4,7 @@ import { prisma } from "../src/core/prisma";
 import { enviarPush } from "../src/core/notificaciones/push";
 import { enviarSms } from "../src/core/notificaciones/sms";
 import { _reiniciarEstadoInterno, cambiarAlarma } from "../src/modules/alarma/alarma.service";
-import { _procesarMensaje } from "../src/modules/dispositivos/dispositivo.mqtt";
+import { _colasVacias, _procesarMensaje } from "../src/modules/dispositivos/dispositivo.mqtt";
 import { app, auth, crearBarrio, crearUsuario, escenario, limpiarBase, token, vincularPlaca } from "./ayudas";
 
 vi.mock("../src/core/notificaciones/push", () => ({ enviarPush: vi.fn(async () => 1), esTokenPushValido: () => true }));
@@ -106,7 +106,7 @@ describe("conexión de la placa", () => {
     await cambiarAlarma(e.dueno.id, e.casa.id, true);
     await _procesarMensaje(DEVICE, "state", { online: true, puerta: "cerrada", ssid: "Casa", rssi: -60 });
     await _procesarMensaje(DEVICE, "state", { online: false });
-    await new Promise((r) => setTimeout(r, 50)); // gracia = 0 s en tests
+    await _colasVacias(); // gracia = 0 s en tests
     await _procesarMensaje(DEVICE, "telemetry", { rssi: -60 });
     const offline = await prisma.evento.findMany({ where: { tipo: "DISPOSITIVO_OFFLINE" }, include: { estado: true } });
     expect(offline).toHaveLength(1);
@@ -264,7 +264,7 @@ describe("armado parcial", () => {
     await _procesarMensaje(VENTANA, "state", { online: true, puerta: "cerrada" });
     await armar([ventana.id]);
     await _procesarMensaje(VENTANA, "state", { online: false });
-    await new Promise((r) => setTimeout(r, 50));
+    await _colasVacias();
     const off = await prisma.evento.findFirstOrThrow({ where: { tipo: "DISPOSITIVO_OFFLINE" }, include: { estado: true } });
     expect(off.severidad).toBe("INFO");
     expect(off.estado).toBeNull();
@@ -301,13 +301,13 @@ describe("batería baja", () => {
     await _procesarMensaje(DEVICE, "state", { online: true, puerta: "cerrada" });
     await bateria(60);
     await _procesarMensaje(DEVICE, "state", { online: false });
-    await new Promise((r) => setTimeout(r, 50));
+    await _colasVacias();
     expect(desconexion()).not.toContain("batería");
 
     await _procesarMensaje(DEVICE, "state", { online: true, puerta: "cerrada" });
     await bateria(8);
     await _procesarMensaje(DEVICE, "state", { online: false });
-    await new Promise((r) => setTimeout(r, 50));
+    await _colasVacias();
     expect(desconexion()).toContain("sin batería: tenía 8 %");
   });
 });

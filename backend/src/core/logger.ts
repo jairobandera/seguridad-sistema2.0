@@ -2,7 +2,8 @@ import pino from "pino";
 import { config } from "./config";
 
 export const logger = pino({
-  level: config.esTest ? "silent" : config.LOG_LEVEL,
+  // En los tests no se muestra nada, salvo con LOG_TESTS=1 (para investigar un test que falla)
+  level: config.esTest ? (process.env.LOG_TESTS ? "warn" : "silent") : config.LOG_LEVEL,
   redact: {
     paths: [
       "password",

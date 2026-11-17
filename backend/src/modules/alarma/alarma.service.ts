@@ -262,7 +262,7 @@ function cancelarRetardo(casaId: number) {
   }
 }
 
-/** MySQL cancela una de dos transacciones que chocan (deadlock, P2034): se reintenta. */
+/** La base cancela una de dos transacciones que chocan (deadlock o conflicto, P2034): se reintenta. */
 async function conReintento<T>(fn: () => Promise<T>, intentos = 3): Promise<T> {
   for (let i = 1; ; i++) {
     try {

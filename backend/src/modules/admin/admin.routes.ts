@@ -34,7 +34,7 @@ adminRouter.get("/usuarios", async (req, res) => {
     ...(f.rol ? { rol: f.rol } : {}),
     ...(f.activo ? { activo: f.activo === "true" } : {}),
     ...(f.q
-      ? { OR: [{ nombre: { contains: f.q } }, { apellido: { contains: f.q } }, { email: { contains: f.q } }] }
+      ? { OR: [{ nombre: { contains: f.q, mode: "insensitive" } }, { apellido: { contains: f.q, mode: "insensitive" } }, { email: { contains: f.q, mode: "insensitive" } }] }
       : {}),
   };
   const usuarios = await prisma.usuario.findMany({
@@ -306,11 +306,11 @@ adminRouter.get("/casas", async (req, res) => {
       ...(q
         ? {
             OR: [
-              { nombre: { contains: q } },
-              { calle: { contains: q } },
-              { barrio: { is: { nombre: { contains: q } } } },
-              { codigo: { contains: q } },
-              { miembros: { some: { usuario: { OR: [{ nombre: { contains: q } }, { apellido: { contains: q } }] } } } },
+              { nombre: { contains: q, mode: "insensitive" } },
+              { calle: { contains: q, mode: "insensitive" } },
+              { barrio: { is: { nombre: { contains: q, mode: "insensitive" } } } },
+              { codigo: { contains: q, mode: "insensitive" } },
+              { miembros: { some: { usuario: { OR: [{ nombre: { contains: q, mode: "insensitive" } }, { apellido: { contains: q, mode: "insensitive" } }] } } } },
             ],
           }
         : {}),

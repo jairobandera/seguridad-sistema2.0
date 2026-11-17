@@ -21,7 +21,7 @@ let cliente: Socket;
 /** Comandos que recibió la placa. */
 const comandos: { cmd: string; activo?: boolean }[] = [];
 
-const esperar = async (cond: () => boolean, ms = 3000) => {
+const esperar = async (cond: () => boolean, ms = 15000) => {
   const fin = Date.now() + ms;
   while (Date.now() < fin && !cond()) await new Promise((r) => setTimeout(r, 30));
   return cond();

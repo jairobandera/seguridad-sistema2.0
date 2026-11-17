@@ -33,7 +33,7 @@ function conectar(opts: mqtt.IClientOptions): Promise<MqttClient> {
   });
 }
 
-const esperar = async (cond: () => Promise<boolean>, ms = 3000) => {
+const esperar = async (cond: () => Promise<boolean>, ms = 60000) => {
   const fin = Date.now() + ms;
   while (Date.now() < fin) {
     if (await cond()) return true;
@@ -169,7 +169,7 @@ describe("broker MQTT", () => {
     await esperar(async () => (await prisma.dispositivo.findUniqueOrThrow({ where: { deviceId: DEVICE } })).online);
     c.stream.destroy(); // corte abrupto
     expect(
-      await esperar(async () => !(await prisma.dispositivo.findUniqueOrThrow({ where: { deviceId: DEVICE } })).online, 5000),
+      await esperar(async () => !(await prisma.dispositivo.findUniqueOrThrow({ where: { deviceId: DEVICE } })).online, 20000),
     ).toBe(true);
   });
 });
@@ -186,8 +186,8 @@ describe("hibernación (modo ahorro)", () => {
     const recibidos: { cmd: string; activo?: boolean }[] = [];
     c.on("message", (_t, p) => recibidos.push(JSON.parse(p.toString())));
 
-    // Al conectarse puede llegar el modo actual (desarmada = ahorro): se descarta
-    await new Promise((r) => setTimeout(r, 300));
+    // Al conectarse llega el modo actual (desarmada = ahorro): se espera y se descarta
+    await esperar(async () => recibidos.some((m) => m.cmd === "ahorro"));
     const desde = recibidos.length;
     const ahorro = () => recibidos.slice(desde).filter((m) => m.cmd === "ahorro");
 

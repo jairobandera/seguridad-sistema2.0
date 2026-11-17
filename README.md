@@ -4,14 +4,14 @@ Sistema de alarma para casas: una placa **ESP32** con sensor magnético en la pu
 (API + tiempo real + broker MQTT) y una **app** para celular (Android/iOS) con tres tipos de usuario.
 
 ```
- Celular (app)  ──HTTP / WebSocket──►  Backend en tu PC  ──►  MySQL (XAMPP)
+ Celular (app)  ──HTTP / WebSocket──►  Backend en tu PC  ──►  PostgreSQL (Supabase)
                                           ▲
  Placa ESP32  ─────── MQTT (puerto 1884) ─┘
 ```
 
 | Carpeta | Qué es |
 |---|---|
-| `backend/` | Node 20 + Express 5 + TypeScript + Prisma (MySQL) + Socket.IO + broker MQTT incluido (aedes) + Expo Push + Twilio |
+| `backend/` | Node 20 + Express 5 + TypeScript + Prisma (PostgreSQL) + Socket.IO + broker MQTT incluido (aedes) + Expo Push + Twilio |
 | `app/` | React Native + Expo SDK 58 (Expo Router, React Native Paper). Se compila en la nube con EAS |
 | `firmware/` | ESP32 con Arduino IDE (NimBLE, ArduinoJson, esp-mqtt) |
 | `docs/protocolo.md` | Contrato único: Bluetooth, MQTT, Socket.IO y API |
@@ -41,7 +41,7 @@ Esta guía explica cómo **levantar todo en tu PC** (red local).
 | Herramienta | Para qué |
 |---|---|
 | **Node.js 20 o más nuevo** | Backend y app |
-| **XAMPP** (solo MySQL) | Base de datos |
+| Cuenta gratis en **https://supabase.com** | Base de datos (PostgreSQL en la nube; no se instala nada) |
 | **Arduino IDE 2** + placa **esp32 by Espressif 3.x** | Grabar la placa |
 | Librerías **NimBLE-Arduino 2.x** (h2zero) y **ArduinoJson 7.x** (Benoit Blanchon) | Firmware |
 | Cuenta gratis en **https://expo.dev** | Compilar la app en la nube |
@@ -62,15 +62,32 @@ Esta guía explica cómo **levantar todo en tu PC** (red local).
 
 ## 2. Primera vez: base de datos
 
-1. Abrí el **XAMPP Control Panel** → **Start** en **MySQL**.
-2. Creá las dos bases (una para usar y otra para los tests):
-   ```bash
-   C:\xampp\mysql\bin\mysql.exe -u root -e "CREATE DATABASE IF NOT EXISTS seguridad; CREATE DATABASE IF NOT EXISTS seguridad_test;"
-   ```
-   (También podés crearlas desde phpMyAdmin: `http://localhost/phpmyadmin` → Nueva).
+La base es **PostgreSQL en Supabase** (gratis). Un solo proyecto tiene tres esquemas separados, cada uno con su
+usuario:
 
-El usuario `root` de XAMPP viene **sin contraseña**. Si le pusiste una, agregala en `DATABASE_URL` del paso siguiente
-(`mysql://root:TU_CLAVE@localhost:3306/seguridad`).
+| Esquema | Para qué | Usuario |
+|---|---|---|
+| `guardiel` | Producción (Render) | `guardiel_prod` |
+| `desarrollo` | Probar en tu PC | `guardiel_dev` |
+| `pruebas` | Tests automáticos (se **borra** en cada corrida) | `guardiel_dev` |
+
+Se usan esquemas propios (no `public`) para que las tablas no queden expuestas en la API pública de Supabase, y
+usuarios separados para que una prueba nunca toque los datos reales.
+
+Si es un proyecto nuevo, en Supabase → **SQL Editor** ejecutá (cambiá las dos claves):
+```sql
+CREATE ROLE guardiel_prod LOGIN PASSWORD 'CLAVE_PROD' NOINHERIT;
+CREATE ROLE guardiel_dev LOGIN PASSWORD 'CLAVE_DEV' NOINHERIT;
+GRANT guardiel_prod TO postgres;
+GRANT guardiel_dev TO postgres;
+CREATE SCHEMA guardiel AUTHORIZATION guardiel_prod;
+CREATE SCHEMA desarrollo AUTHORIZATION guardiel_dev;
+CREATE SCHEMA pruebas AUTHORIZATION guardiel_dev;
+GRANT CREATE ON DATABASE postgres TO guardiel_dev;
+REVOKE ALL ON SCHEMA guardiel, desarrollo, pruebas FROM PUBLIC;
+```
+La dirección de conexión sale de **Connect → Session pooler** (no la "Direct": es solo IPv6). El usuario va como
+`guardiel_dev.REF_DEL_PROYECTO`.
 
 ---
 
@@ -88,7 +105,7 @@ Copiá `backend/.env.example` como `backend/.env` y completá:
 
 | Variable | Qué poner |
 |---|---|
-| `DATABASE_URL` | `mysql://root:@localhost:3306/seguridad` (así viene) |
+| `DATABASE_URL` / `TEST_DATABASE_URL` | Las de Supabase con el usuario `guardiel_dev` y `?schema=desarrollo` / `?schema=pruebas` (ver `.env.example`) |
 | `JWT_SECRET` | Un secreto nuevo (ver abajo) |
 | `DEVICE_SECRET_KEY` | Otro secreto nuevo (ver abajo). **No lo cambies después**: si lo cambiás hay que volver a vincular las placas |
 | `MQTT_TCP_PORT` | `1884` (así viene) |
@@ -262,21 +279,20 @@ En el Monitor Serie se ve:
 
 Una vez hecho todo lo anterior, para seguir probando solo hace falta:
 
-1. **XAMPP** → **Start** en MySQL.
-2. Terminal en `backend`:
+1. Terminal en `backend` (la base está en Supabase, no hay nada que prender):
    ```bash
    npx pnpm@10 dev
    ```
-3. Terminal en `app`:
+2. Terminal en `app`:
    ```bash
    npx expo start --dev-client
    ```
-4. **Enchufá la placa** (cualquier cargador USB; no necesita la PC). Se conecta sola.
-5. Abrí **Seguridad Hogar** en el celular. Si no carga sola, escaneá el QR de la terminal.
+3. **Enchufá la placa** (cualquier cargador USB; no necesita la PC). Se conecta sola.
+4. Abrí **GuardiEl** en el celular. Si no carga sola, escaneá el QR de la terminal.
 
 **No** hace falta volver a compilar la app ni a grabar la placa, salvo que cambie su código.
 
-Para apagar: `Ctrl + C` en cada terminal y **Stop** en XAMPP.
+Para apagar: `Ctrl + C` en cada terminal.
 
 ---
 
@@ -344,7 +360,7 @@ una contraseña nueva sin saber la anterior.
 
 ## 11. Tests y chequeos
 
-Backend (con MySQL prendido; usa la base `seguridad_test`):
+Backend (usa el esquema `pruebas` de Supabase, `TEST_DATABASE_URL`; tarda unos minutos porque va por internet):
 ```bash
 npx pnpm@10 test
 ```
@@ -375,8 +391,9 @@ Firmware: compilar en Arduino IDE (✓) o con `arduino-cli compile --fqbn esp32:
 | `Sketch too big` al compilar | Partición por defecto | **Partition Scheme → Minimal SPIFFS** |
 | `Slug ... does not match` en `eas build` | El slug no coincide con el proyecto de Expo | Igualá `slug` en `app/app.config.ts` con el proyecto (ver `npx eas-cli@latest project:info`) |
 | `adb executable doesn't seem to work` al final del build | EAS quiso abrir un emulador | Ignoralo: el build salió bien. Instalá el APK desde el link |
-| Monitor Serie: `[mqtt] credenciales rechazadas: placa desvinculada` y la app dice "Sin conexión" | Con el firmware anterior a este arreglo, si la placa se conectaba mientras MySQL estaba apagado, se desvinculaba sola | Subí el firmware actual y volvé a agregarla: **Placa → Agregar placa** (a la misma casa se permite). Prendé siempre XAMPP **antes** que el backend |
-| MySQL no arranca en XAMPP | Puerto 3306 ocupado u otro MySQL | Cerrá otros MySQL o revisá el log de XAMPP |
+| Monitor Serie: `[mqtt] credenciales rechazadas: placa desvinculada` y la app dice "Sin conexión" | Con el firmware anterior a este arreglo, si la placa se conectaba mientras la base no respondía, se desvinculaba sola | Subí el firmware actual y volvé a agregarla: **Dispositivos → Agregar dispositivo** (a la misma casa se permite) |
+| `Tenant or user not found` / `Can't reach database server` | Dirección de Supabase mal copiada | Usá la del **Session pooler** (puerto 5432), con el usuario como `guardiel_dev.REF_DEL_PROYECTO` y `?schema=...` al final |
+| `TEST_DATABASE_URL tiene que terminar en ?schema=pruebas` | Protección de los tests | Los tests borran todo: solo corren contra el esquema `pruebas` |
 
 ---
 

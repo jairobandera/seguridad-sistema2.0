@@ -205,3 +205,13 @@ export async function detenerManejadoresMqtt() {
 export function _procesarMensaje(deviceId: string, tipo: TipoMensaje, payload: object) {
   return enCola(deviceId, () => manejar(deviceId, tipo, Buffer.from(JSON.stringify(payload))));
 }
+
+/** Para tests: espera a que se procesen los mensajes y los "offline" pendientes (sin tiempos fijos). */
+export async function _colasVacias() {
+  for (;;) {
+    await new Promise((r) => setTimeout(r, 5));
+    if (offlinePendientes.size) continue;
+    if (!colas.size) return;
+    await Promise.all([...colas.values()]);
+  }
+}
