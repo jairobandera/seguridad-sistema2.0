@@ -169,5 +169,5 @@ token que la placa verifica). Nadie que pase cerca puede cambiarle la red.
 
 ## Producción
 Para producción no hay que cambiar nada del firmware: la app le manda la URL del servidor
-(`https://…onrender.com`) y el servidor le entrega `wss://…onrender.com/mqtt`. Los certificados
+(`https://seguridad.pckairos.cloud`) y el servidor le entrega `wss://seguridad.pckairos.cloud/mqtt`. Los certificados
 HTTPS se validan con el paquete de certificados raíz que trae el ESP32.

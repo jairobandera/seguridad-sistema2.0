@@ -13,7 +13,7 @@ import { igualesSeguro, sha256 } from "../cripto";
  * - Las placas se autentican con usuario = deviceId y la contraseña entregada al vincularse.
  * - Cada placa solo puede publicar en dev/{su id}/{state,event,telemetry,ack,log}
  *   y suscribirse a dev/{su id}/cmd.
- * - Transporte: WebSocket en /mqtt (wss:// detrás de Render) y, opcionalmente, TCP.
+ * - Transporte: WebSocket en /mqtt (wss:// detrás del proxy del VPS) y, opcionalmente, TCP.
  */
 
 export type TipoMensaje = "state" | "event" | "telemetry" | "ack" | "log";

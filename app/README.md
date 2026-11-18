@@ -45,7 +45,7 @@ Para iPhone: `--platform ios` (necesita la cuenta de Apple Developer).
 
 ## Versiones para usuarios
 - **preview**: APK para repartir a clientes y guardias de prueba (`eas build --profile preview --platform android`).
-- **production**: para las tiendas (`eas build --profile production`), con `EXPO_PUBLIC_API_URL` de Render en `eas.json`.
+- **production**: para las tiendas (`eas build --profile production`), con `EXPO_PUBLIC_API_URL=https://seguridad.pckairos.cloud` en `eas.json`.
 - Correcciones sin pasar por las tiendas: `npx eas-cli@latest update`.
 
 Cómo levantar todo en local: `README.md` en la raíz del repo.

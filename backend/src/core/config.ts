@@ -24,9 +24,9 @@ const esquema = z.object({
 
   // Broker MQTT embebido. Las placas se conectan por WebSocket en {API}/mqtt.
   // En desarrollo se puede abrir además un puerto TCP (ej. 1883) para la red local.
-  // Vacío = sin TCP (en Render no se define: solo entra HTTPS/WSS)
+  // Vacío = sin TCP (en el VPS no se define: solo entra HTTPS/WSS)
   MQTT_TCP_PORT: z.preprocess((v) => (v === "" ? undefined : v), z.coerce.number().int().positive().optional()),
-  // URL que se le entrega a la placa al vincularse (ej. wss://mi-api.onrender.com/mqtt o mqtt://192.168.1.10:1883)
+  // URL que se le entrega a la placa al vincularse (ej. wss://seguridad.pckairos.cloud/mqtt o mqtt://192.168.1.10:1883)
   MQTT_PUBLIC_URL: z.string().default("ws://localhost:3000/mqtt"),
   // Segundos de espera antes de declarar offline una placa que se desconectó (evita falsas alarmas por cortes breves)
   DEVICE_OFFLINE_GRACIA_SEG: z.coerce.number().int().nonnegative().default(30),
@@ -42,7 +42,7 @@ const esquema = z.object({
   SMS_MINUTOS_ENTRE_ALERTAS: z.coerce.number().int().nonnegative().default(5),
 
   // Emails (código para restablecer la contraseña) por la API HTTP de Brevo.
-  // Render gratis bloquea SMTP, por eso se usa HTTPS. Sin clave: en desarrollo el código sale en la consola.
+  // Muchos servidores bloquean SMTP, por eso se usa HTTPS. Sin clave: en desarrollo el código sale en la consola.
   BREVO_API_KEY: z.string().optional(),
   EMAIL_REMITENTE: z.string().email().optional(),
   EMAIL_NOMBRE_REMITENTE: z.string().default("GuardiEl"),

@@ -1,7 +1,7 @@
 /**
  * Crea el administrador inicial a partir de SEED_ADMIN_EMAIL y SEED_ADMIN_PASSWORD.
  * Es idempotente: si el usuario ya existe no lo toca. `pnpm start` lo corre con `--opcional` en cada arranque
- * (así en Render el admin se crea solo, sin usar la Shell).
+ * (así en el servidor el admin se crea solo al arrancar).
  *
  * Con `--demo` crea además datos de prueba: un barrio con guardia (casa de Ana y Juan), un barrio
  * sin guardia (casa de Lucía) y una casa individual (Pedro).

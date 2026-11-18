@@ -98,7 +98,7 @@ Al vincular, el backend reinicia `ultimoSeq` a 0.
 ## 3. MQTT
 
 El broker MQTT está **incluido en el backend** (aedes): en producción las placas se conectan por
-`wss://<api>/mqtt` (TLS de Render); en la red local también por TCP (`mqtt://<ip-pc>:1884`).
+`wss://<api>/mqtt` (TLS del proxy del VPS); en la red local también por TCP (`mqtt://<ip-pc>:1884`).
 Sin acceso anónimo: usuario = `deviceId` = clientId, clave entregada al vincularse (el backend guarda
 solo su hash). ACL: la placa publica solo en `dev/{deviceId}/state|event|telemetry|ack|log` y se suscribe
 solo a `dev/{deviceId}/cmd`.

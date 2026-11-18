@@ -24,7 +24,7 @@ export function crearApp() {
   app.use(cors({ origin: config.corsOrigins.length ? config.corsOrigins : false }));
   app.use(express.json({ limit: "100kb" }));
 
-  // Salud: público y liviano (lo usa Render y cron-job.org para mantenerlo despierto)
+  // Salud: público y liviano (lo usa Coolify como health check)
   const salud: express.RequestHandler = async (_req, res) => {
     let db = false;
     try {

@@ -67,7 +67,7 @@ usuario:
 
 | Esquema | Para qué | Usuario |
 |---|---|---|
-| `guardiel` | Producción (Render) | `guardiel_prod` |
+| `guardiel` | Producción (hoy en el VPS de pckairos.cloud, base `apps`) | `guardiel_prod` |
 | `desarrollo` | Probar en tu PC | `guardiel_dev` |
 | `pruebas` | Tests automáticos (se **borra** en cada corrida) | `guardiel_dev` |
 
@@ -353,7 +353,7 @@ una contraseña nueva sin saber la anterior.
      ```
   5. Reiniciá el backend. Ya no debería decir "Email deshabilitado".
 
-> Se usa la API de Brevo (HTTPS) y no SMTP porque Render gratis bloquea SMTP. Con un Gmail como remitente, Brevo lo
+> Se usa la API de Brevo (HTTPS) y no SMTP porque muchos servidores bloquean el puerto SMTP. Con un Gmail como remitente, Brevo lo
 > manda desde una dirección suya (`...@brevosend.com`) con el nombre **GuardiEl**: llega igual.
 
 ---

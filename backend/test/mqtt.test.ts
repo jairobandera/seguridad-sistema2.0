@@ -52,7 +52,7 @@ beforeAll(async () => {
   server = net.createServer(broker.handle);
   await new Promise<void>((r) => server.listen(0, r));
   url = `mqtt://localhost:${(server.address() as AddressInfo).port}`;
-  // Igual que en producción (Render): MQTT por WebSocket
+  // Igual que en producción (VPS): MQTT por WebSocket
   servidorWs = http.createServer();
   const wss = new WebSocketServer({ server: servidorWs });
   wss.on("connection", (ws) => broker.handle(streamMqttWs(ws)));
