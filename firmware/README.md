@@ -97,6 +97,9 @@ una caída de 0,1 V se veía como 10–15 % menos. Por eso la placa mide en una 
 250 ms), usa la franja alta de las muestras (sin las caídas del WiFi), suaviza entre reportes y el % cambia recién con
 **3 puntos** de diferencia.
 
+Recién cargada, la pila baja sola de 4,20 V a ~4,10 V en unos minutos (es normal). Por eso desde **4,10 V** muestra
+**100 %** (`BATERIA_MV_LLENA` en `config.h`), como los celulares.
+
 Recién sacada del cargador es normal que marque ~90–95 %: la tensión baja enseguida de 4,2 V a ~4,1 V.
 
 **Calibrar con el multímetro** (opcional): con la placa funcionando, medí la batería (B+ y B−) y compará con la línea

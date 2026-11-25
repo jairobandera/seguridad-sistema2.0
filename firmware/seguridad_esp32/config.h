@@ -51,6 +51,8 @@
 #define BATERIA_INTERVALO_MS 250UL // una muestra cada 250 ms...
 #define BATERIA_VENTANA 40         // ...en una ventana de 10 s (descarta las caídas cuando transmite el WiFi)
 #define BATERIA_HISTERESIS_PCT 3   // el % informado cambia recién con 3 puntos de diferencia
+// Desde acá cuenta como 100 %: recién cargada, la pila baja sola de 4,20 V a ~4,10 V en reposo
+#define BATERIA_MV_LLENA 4100
 #define BATERIA_MIN_MV 3000        // por debajo: no hay batería (o está agotada y la placa ya se apaga)
 #define BATERIA_MAX_MV 4400        // por encima: no es una 18650 (pin al aire o mal conectado)
 #define BATERIA_RUIDO_MAX_MV 300   // dispersión máxima de las muestras para considerarla una batería real

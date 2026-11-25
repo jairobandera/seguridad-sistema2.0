@@ -28,11 +28,12 @@ int cargaCelda(int mv) {
   return 100;
 }
 
-// % que le sirve al usuario: 0 % = BATERIA_MV_VACIA (la placa se apaga), no la celda vacía
+// % que le sirve al usuario: 0 % = BATERIA_MV_VACIA (la placa se apaga) y 100 % = BATERIA_MV_LLENA (recién cargada)
 int porcentaje(int mv) {
   int vacia = cargaCelda(BATERIA_MV_VACIA);
-  if (vacia >= 100) return cargaCelda(mv);
-  int pct = (cargaCelda(mv) - vacia) * 100 / (100 - vacia);
+  int llena = cargaCelda(BATERIA_MV_LLENA);
+  if (llena <= vacia) return cargaCelda(mv);
+  int pct = (cargaCelda(mv) - vacia) * 100 / (llena - vacia);
   return pct < 0 ? 0 : pct > 100 ? 100 : pct;
 }
 
