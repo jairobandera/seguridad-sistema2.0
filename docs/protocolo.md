@@ -129,8 +129,8 @@ solo a `dev/{deviceId}/cmd`.
 - `factory_reset`: la placa manda el `ack`, borra todo y reinicia en modo configuración.
 - `monitor` (`{"activo":bool}`): monitor serial por internet. Con `true` la placa manda por `log` lo último que
   imprimió (buffer de 3 KB, incluye el arranque) y todo lo nuevo, más un resumen (versión, tiempo prendido, motivo
-  del último reinicio, WiFi, memoria, puerta, batería) y la batería cada 10 s. Se apaga sola a los 3 min: el
-  backend lo renueva cada minuto mientras algún admin mira, y manda `false` cuando se va el último.
+  del último reinicio, WiFi, memoria, puerta, batería) y la batería cada 10 s. Se apaga sola a los 6 min: el
+  backend lo renueva cada 2 minutos mientras algún admin mira, y manda `false` cuando se va el último.
   Socket.IO (solo ADMIN): `monitor:abrir {deviceId}` → ack `{ok, online}`; `monitor:cerrar {deviceId}`;
   el servidor emite `monitor:linea {deviceId, texto}` y `monitor:estado {deviceId, online}`.
 - `ahorro` (hibernación): el backend lo manda al armar/desarmar y cada vez que la placa se conecta.

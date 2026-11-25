@@ -7,9 +7,9 @@ import { enviarComando } from "../../core/mqtt/comandos";
 /**
  * Monitor serial por internet (docs/protocolo.md §3 y §4): un admin abre el monitor de una placa, la placa manda
  * lo que imprime a dev/{id}/log y se reenvía solo a los admins que lo están mirando. La placa lo apaga sola a los
- * 3 min si no se renueva: mientras haya alguien mirando, se renueva cada minuto.
+ * 6 min si no se renueva: mientras haya alguien mirando, se renueva cada 2 minutos.
  */
-const RENOVAR_MS = 60_000;
+const RENOVAR_MS = 120_000;
 const DEVICE_ID = /^[0-9A-F]{12}$/;
 
 let io: Server | null = null;

@@ -15,7 +15,7 @@ extern Consola consola;
 namespace monitor {
 // Engancha los mensajes internos del ESP32 (esp_log). Llamar después de Serial.begin().
 void iniciar();
-// Prende o apaga el envío. Prendido se apaga solo si no se renueva (el servidor lo renueva cada minuto).
+// Prende o apaga el envío. Prendido se apaga solo si no se renueva (el servidor lo renueva cada 2 minutos).
 void activar(bool activo);
 bool activo();
 // Desde el loop: manda lo acumulado (cada ~500 ms, de a trozos).

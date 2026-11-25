@@ -73,7 +73,7 @@
 #define MONITOR_BUFFER 3072           // bytes de lo último impreso que se guardan
 #define MONITOR_TROZO 900             // bytes por mensaje MQTT
 #define MONITOR_ENVIO_MS 500UL        // cada cuánto se manda lo acumulado
-#define MONITOR_DURACION_MS 180000UL  // se apaga solo si el servidor no lo renueva
+#define MONITOR_DURACION_MS 360000UL  // se apaga solo si el servidor no lo renueva (lo renueva cada 2 min)
 #define MONITOR_BATERIA_MS 10000UL    // con el monitor abierto, la línea de batería sale cada 10 s
 #define WIFI_TIMEOUT_SETUP_MS 20000UL
 #define MQTT_TIMEOUT_SETUP_MS 15000UL
