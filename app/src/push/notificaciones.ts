@@ -39,6 +39,9 @@ async function crearCanales() {
 
 export type ResultadoPush = "ok" | "sin_permiso" | "emulador" | "sin_proyecto" | "web" | "error";
 
+/** Motivo del último fallo al registrar el celular (para mostrarlo en el perfil). */
+export let ultimoErrorPush: string | null = null;
+
 /** Pide permiso, obtiene el token de Expo y lo registra en el backend. */
 export async function registrarPush(): Promise<ResultadoPush> {
   // En la web no hay push de Expo: las alarmas llegan por WebSocket con la página abierta
@@ -55,8 +58,11 @@ export async function registrarPush(): Promise<ResultadoPush> {
     const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
     await yo.registrarPush(token, Platform.OS);
     await guardarPushToken(token);
+    ultimoErrorPush = null;
     return "ok";
-  } catch {
+  } catch (e) {
+    // Ej. "Default FirebaseApp is not initialized": la app se compiló sin google-services.json
+    ultimoErrorPush = e instanceof Error ? e.message : String(e);
     return "error";
   }
 }

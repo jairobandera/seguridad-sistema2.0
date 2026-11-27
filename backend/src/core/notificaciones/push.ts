@@ -28,7 +28,11 @@ export async function enviarPush(usuarioIds: number[], msg: MensajePush, eventoI
   try {
     const tokens = await prisma.pushToken.findMany({ where: { usuarioId: { in: ids } } });
     const validos = tokens.filter((t) => Expo.isExpoPushToken(t.token));
-    if (!validos.length) return 0;
+    if (!validos.length) {
+      // Ningún celular registró su token (permiso denegado o app compilada sin Firebase)
+      logger.warn({ usuarioIds: ids, tipo: msg.tipo }, "Push sin celulares registrados: no se avisó a nadie");
+      return 0;
+    }
 
     const mensajes: ExpoPushMessage[] = validos.map((t) => ({
       to: t.token,

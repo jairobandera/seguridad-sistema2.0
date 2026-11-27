@@ -132,6 +132,9 @@ async function enviarSmsCasa(casaId: number, eventoId: number, cuerpo: string) {
   }
   ultimoSmsPorCasa.set(casaId, ahora);
   const { telefonosSms } = await destinatarios(casaId);
+  if (!telefonosSms.length) {
+    logger.warn({ casaId }, "SMS sin destinatarios: el dueño no tiene teléfono ni contactos de emergencia");
+  }
   for (const tel of telefonosSms) {
     const r = await enviarSms(tel, cuerpo);
     await prisma.notificacion.create({

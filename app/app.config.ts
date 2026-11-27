@@ -32,8 +32,14 @@ const config: ExpoConfig = {
       monochromeImage: "./assets/android-icon-monochrome.png",
     },
     predictiveBackGestureEnabled: false,
-    // google-services.json (Firebase) es necesario para las push en Android (no hace falta para probar en local)
-    ...(fs.existsSync("./google-services.json") ? { googleServicesFile: "./google-services.json" } : {}),
+    // google-services.json (Firebase) es OBLIGATORIO para las push en Android: sin él la app no obtiene token
+    // y no llega ninguna notificación. En EAS viene de la variable de tipo archivo GOOGLE_SERVICES_JSON
+    // (no se sube al repo); en local, del archivo ./google-services.json si existe.
+    ...(process.env.GOOGLE_SERVICES_JSON
+      ? { googleServicesFile: process.env.GOOGLE_SERVICES_JSON }
+      : fs.existsSync("./google-services.json")
+        ? { googleServicesFile: "./google-services.json" }
+        : {}),
   },
   // Panel web (admin/guardia) publicado como sitio estático: una sola página (el servidor reescribe todo a index.html)
   web: { favicon: "./assets/favicon.png", output: "single" },

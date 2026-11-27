@@ -7,7 +7,7 @@ import { yo } from "@/api/endpoints";
 import { mensajeDeError } from "@/api/cliente";
 import { NOMBRE_APP, VERSION_APP } from "@/config";
 import { useSesion } from "@/store/sesion";
-import { permisoPush, registrarPush } from "@/push/notificaciones";
+import { permisoPush, registrarPush, ultimoErrorPush } from "@/push/notificaciones";
 import { cerrarSesion } from "@/sesion/acciones";
 import { nombreCompleto } from "@/utils/formato";
 import { formatoTelefono } from "@/utils/telefono";
@@ -40,6 +40,9 @@ export function Perfil() {
       if (r === "sin_proyecto") return setAviso("Las notificaciones push se activan cuando la app está compilada con EAS (ver la guía).");
       if (r === "emulador") return setAviso("Las notificaciones push solo funcionan en un celular real.");
       if (r === "web") return setAviso("En la web no hay notificaciones push: las alarmas suenan con la página abierta.");
+      if (r === "error") {
+        return setAviso(`No se pudieron activar las notificaciones en este celular${ultimoErrorPush ? ` (${ultimoErrorPush})` : ""}.`);
+      }
       await yo.pruebaPush();
       setAviso("Te mandamos una notificación de prueba");
     } catch (e) {
