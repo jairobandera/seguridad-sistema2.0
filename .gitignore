@@ -53,3 +53,7 @@ esp32/*.map
 esp32/
 frontend/
 legacy/
+
+# Firebase de la app (se cargan en EAS, nunca al repo)
+app/google-services.json
+firebase/
