@@ -3,7 +3,7 @@ import request from "supertest";
 import { prisma } from "../src/core/prisma";
 import { enviarPush } from "../src/core/notificaciones/push";
 import { enviarSms } from "../src/core/notificaciones/sms";
-import { _reiniciarEstadoInterno, cambiarAlarma } from "../src/modules/alarma/alarma.service";
+import { _reiniciarEstadoInterno, cambiarAlarma, estadoCasa } from "../src/modules/alarma/alarma.service";
 import { _colasVacias, _procesarMensaje } from "../src/modules/dispositivos/dispositivo.mqtt";
 import { app, auth, crearBarrio, crearUsuario, escenario, limpiarBase, token, vincularPlaca } from "./ayudas";
 
@@ -294,6 +294,16 @@ describe("batería baja", () => {
     expect(avisos()).toHaveLength(3);
     const ev = await prisma.evento.findMany({ where: { tipo: "BATERIA_BAJA" }, orderBy: { id: "asc" } });
     expect(ev.map((x) => x.valor)).toEqual(["19", "9", "19"]);
+  });
+
+  it("cargando no avisa batería baja y el estado de la casa dice que está cargando", async () => {
+    await _procesarMensaje(DEVICE, "telemetry", { rssi: -60, bat: 9, mv: 3540, carga: true });
+    expect(avisos()).toHaveLength(0);
+    expect((await estadoCasa(e.casa.id))?.dispositivos[0]).toMatchObject({ bateria: 9, cargando: true });
+
+    await _procesarMensaje(DEVICE, "telemetry", { rssi: -60, bat: 9, mv: 3540 });
+    expect(avisos()).toHaveLength(1);
+    expect((await prisma.dispositivo.findUniqueOrThrow({ where: { deviceId: DEVICE } })).cargando).toBe(false);
   });
 
   it("si se desconecta con poca batería, el aviso dice que seguramente fue la batería", async () => {

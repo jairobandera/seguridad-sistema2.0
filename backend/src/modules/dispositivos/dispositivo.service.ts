@@ -19,6 +19,7 @@ export function dispositivoPublico(d: Dispositivo) {
     wifiSsid: d.wifiSsid,
     wifiRssi: d.wifiRssi,
     bateria: d.bateria,
+    cargando: d.cargando,
     firmwareVersion: d.firmwareVersion,
     ultimaConexion: d.ultimaConexion?.toISOString() ?? null,
     vinculadoEn: d.vinculadoEn?.toISOString() ?? null,

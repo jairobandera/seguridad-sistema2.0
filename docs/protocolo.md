@@ -108,7 +108,7 @@ solo a `dev/{deviceId}/cmd`.
 | `dev/{id}/state` | placa → | 1 | sí | `{"online":true,"puerta":"abierta"\|"cerrada","fw":"2.0.0","ssid":"…","rssi":-60,"ip":"…","bat":85,"mv":4010}` |
 | `dev/{id}/state` (LWT) | broker → | 1 | sí | `{"online":false}` |
 | `dev/{id}/event` | placa → | 1 | no | `{"seq":12,"tipo":"PUERTA_ABIERTA"\|"PUERTA_CERRADA","ts":1730000000}` |
-| `dev/{id}/telemetry` | placa → | 0 | no | `{"rssi":-61,"uptime":3600,"heap":120000,"bat":85,"mv":4010}` cada 60 s |
+| `dev/{id}/telemetry` | placa → | 0 | no | `{"rssi":-61,"uptime":3600,"heap":120000,"bat":85,"mv":4010,"carga":false}` cada 60 s. `carga`: el cargador de la pila está enchufado (mientras tanto `bat` sube de a poco, como en un celular) |
 | `dev/{id}/log` | placa → | 0 | no | Texto plano (no JSON): lo que imprime la placa, solo con el monitor activo. Trozos de hasta 900 bytes cada ~500 ms |
 | `dev/{id}/cmd` | backend → | 1 | no | `{"id":"<uuid>","cmd":"factory_reset"\|"open_ble"\|"reboot"\|"ping"}` · `{"id","cmd":"ahorro","activo":bool}` |
 | `dev/{id}/ack` | placa → | 1 | no | `{"id":"<uuid>","ok":true,"error":null}` |

@@ -1,7 +1,7 @@
 import { View } from "react-native";
 import { Icon, List, Text } from "react-native-paper";
 import type { DispositivoCasa } from "@/api/tipos";
-import { barrasSenal, colorBateria, iconoBateria } from "@/utils/formato";
+import { barrasSenal, colorBateria, iconoBateria, textoBateria } from "@/utils/formato";
 import { colores } from "@/tema";
 
 /** Nombre del dispositivo o uno genérico si todavía no tiene. */
@@ -22,8 +22,8 @@ export function DispositivoFila({ d, alTocar }: { d: DispositivoCasa; alTocar?: 
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
           {d.bateria != null && d.online ? (
             <>
-              <Icon source={iconoBateria(d.bateria)} size={20} color={colorBateria(d.bateria)} />
-              <Text variant="labelMedium">{d.bateria} %</Text>
+              <Icon source={iconoBateria(d.bateria, d.cargando)} size={20} color={colorBateria(d.bateria, d.cargando)} />
+              <Text variant="labelMedium">{d.cargando ? textoBateria(d.bateria, true) : `${d.bateria} %`}</Text>
             </>
           ) : d.online ? (
             <Icon source="power-plug" size={20} color={colores.ok} />

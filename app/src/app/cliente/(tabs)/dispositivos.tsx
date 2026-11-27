@@ -10,7 +10,7 @@ import type { DispositivoCasa } from "@/api/tipos";
 import { useCasas } from "@/hooks/useCasas";
 import { Cargando, ErrorReintentar, Vacio } from "@/components/Estados";
 import { nombreDispositivo } from "@/components/DispositivoFila";
-import { barrasSenal, colorBateria, haceCuanto, iconoBateria } from "@/utils/formato";
+import { barrasSenal, colorBateria, haceCuanto, iconoBateria, textoBateria } from "@/utils/formato";
 import { colores } from "@/tema";
 
 type Dialogo = "nombre" | "reiniciar" | "no_conectado" | "reset" | "sin_respuesta";
@@ -182,8 +182,8 @@ export default function Dispositivos() {
             {d.bateria != null && d.online ? (
               <List.Item
                 title="Batería"
-                description={`${d.bateria} %`}
-                left={(p) => <List.Icon {...p} icon={iconoBateria(d.bateria!)} color={colorBateria(d.bateria!)} />}
+                description={textoBateria(d.bateria, d.cargando)}
+                left={(p) => <List.Icon {...p} icon={iconoBateria(d.bateria!, d.cargando)} color={colorBateria(d.bateria!, d.cargando)} />}
               />
             ) : d.bateria != null ? (
               // Desconectado: el % es de antes de cortarse, no el de ahora

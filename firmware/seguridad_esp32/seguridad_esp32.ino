@@ -285,7 +285,7 @@ void avanzarTrabajo() {
 unsigned long ultimaLineaBateria = 0;
 
 void imprimirBateria(const bateria::Lectura& bat) {
-  if (bat.pct >= 0) consola.printf("[bateria] %d mV (%d %%)\n", bat.mv, bat.pct);
+  if (bat.pct >= 0) consola.printf("[bateria] %d mV (%d %%)%s\n", bat.mv, bat.pct, bat.cargando ? " cargando" : "");
   else consola.printf("[bateria] sin pila: enchufado por USB (lectura %d mV)\n", bat.mv);
 }
 

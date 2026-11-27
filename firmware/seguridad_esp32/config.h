@@ -50,9 +50,19 @@
 #define BATERIA_LECTURAS 8         // lecturas por muestra
 #define BATERIA_INTERVALO_MS 250UL // una muestra cada 250 ms...
 #define BATERIA_VENTANA 40         // ...en una ventana de 10 s (descarta las caídas cuando transmite el WiFi)
-#define BATERIA_HISTERESIS_PCT 3   // el % informado cambia recién con 3 puntos de diferencia
 // Desde acá cuenta como 100 %: recién cargada, la pila baja sola de 4,20 V a ~4,10 V en reposo
 #define BATERIA_MV_LLENA 4100
+// Como un celular: con el cargador del TP4056 enchufado la tensión sube de golpe aunque la pila esté vacía,
+// así que mientras carga el % se estima por tiempo (sube de a poco desde el valor real que tenía) y sin
+// cargador el % solo baja (nunca "sube solo").
+#define BATERIA_SALTO_CARGA_MV 100       // subida de tensión que indica que enchufaron el cargador
+#define BATERIA_CAIDA_DESENCHUFE_MV 80   // caída desde el máximo de la carga que indica que lo desenchufaron
+#define BATERIA_CARGA_PCT_MIN 0.55f      // % por minuto cargando (TP4056 a 1 A con una 18650 de ~2500 mAh: ~3 h)
+#define BATERIA_MV_CARGA_COMPLETA 4170   // en carga, a esta tensión la pila ya está casi llena (fase final)
+#define BATERIA_LLENA_TRAS_MS (20UL * 60UL * 1000UL)  // tanto tiempo en la fase final = 100 % (cargada)
+#define BATERIA_REAJUSTE_MS (5UL * 60UL * 1000UL)     // tras desenchufar, se espera esto y se toma el % real
+// Opcional: pata CHRG del TP4056 (luz roja) a este pin -> detección de carga exacta (LOW = cargando).
+// #define BATERIA_PIN_CARGA 4
 #define BATERIA_MIN_MV 3000        // por debajo: no hay batería (o está agotada y la placa ya se apaga)
 #define BATERIA_MAX_MV 4400        // por encima: no es una 18650 (pin al aire o mal conectado)
 #define BATERIA_RUIDO_MAX_MV 300   // dispersión máxima de las muestras para considerarla una batería real

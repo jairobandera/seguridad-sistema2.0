@@ -102,15 +102,23 @@ export function barrasSenal(rssi: number | null | undefined): number {
   return 1;
 }
 
-/** Ícono de batería (Material Design Icons) según el porcentaje. */
-export function iconoBateria(pct: number): string {
+/** Ícono de batería (Material Design Icons) según el porcentaje; con el rayito si está cargando. */
+export function iconoBateria(pct: number, cargando = false): string {
+  const decena = Math.max(10, Math.round(pct / 10) * 10);
+  if (cargando) return decena >= 100 ? "battery-charging-100" : `battery-charging-${decena}`;
   if (pct <= 10) return "battery-alert";
-  const decena = Math.round(pct / 10) * 10;
   return decena >= 100 ? "battery" : `battery-${decena}`;
 }
 
-/** Verde, naranja con 20 % o menos, rojo con 10 % o menos. */
-export function colorBateria(pct: number): string {
+/** Texto como en un celular: "45 %", "45 % · Cargando" o "100 % · Cargada". */
+export function textoBateria(pct: number, cargando = false): string {
+  if (!cargando) return `${pct} %`;
+  return pct >= 100 ? `${pct} % · Cargada` : `${pct} % · Cargando`;
+}
+
+/** Verde (también cargando), naranja con 20 % o menos, rojo con 10 % o menos. */
+export function colorBateria(pct: number, cargando = false): string {
+  if (cargando) return colores.ok;
   if (pct <= 10) return colores.peligro;
   if (pct <= 20) return colores.aviso;
   return colores.ok;

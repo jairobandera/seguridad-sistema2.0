@@ -34,6 +34,7 @@ export async function estadoCasa(casaId: number) {
     rssi: d.wifiRssi,
     ssid: d.wifiSsid,
     bateria: d.bateria,
+    cargando: d.cargando,
     /** Armado parcial: quedó afuera de la alarma (no la dispara) */
     excluido: casa.alarmaArmada && d.excluidoAlarma,
     firmwareVersion: d.firmwareVersion,
@@ -403,7 +404,8 @@ const BATERIA_SOSPECHA_PCT = 25;
 
 /** Avisa una vez al 20 % y otra al 10 % a la familia (push, sin sirena). */
 export async function revisarBateria(disp: Dispositivo) {
-  if (!disp.casaId || disp.bateria == null) return;
+  // Cargando no se avisa "batería baja" (ya la están cargando)
+  if (!disp.casaId || disp.bateria == null || disp.cargando) return;
   if (disp.bateria >= BATERIA_REARME_PCT) {
     if (disp.avisoBateria != null) await prisma.dispositivo.update({ where: { id: disp.id }, data: { avisoBateria: null } });
     return;

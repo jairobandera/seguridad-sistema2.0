@@ -46,6 +46,8 @@ export interface DispositivoCasa {
   ssid: string | null;
   /** % de la batería (null si no tiene batería conectada) */
   bateria: number | null;
+  /** El cargador de la pila está enchufado (el % sube de a poco) */
+  cargando?: boolean;
   /** Armado parcial: quedó afuera de la alarma (no la dispara) */
   excluido: boolean;
   firmwareVersion: string | null;
@@ -211,6 +213,7 @@ export interface DispositivoAdmin {
   wifiSsid: string | null;
   wifiRssi: number | null;
   bateria: number | null;
+  cargando?: boolean;
   firmwareVersion: string | null;
   ultimaConexion: string | null;
   vinculadoEn: string | null;

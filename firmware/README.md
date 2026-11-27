@@ -94,13 +94,23 @@ Monitor Serie del Arduino IDE, en vivo y por internet (incluido lo último antes
 ### Por qué el % puede variar y cómo se calibra
 Una 18650 baja de tensión por un instante cada vez que el WiFi transmite, y entre 80 % y 60 % hay apenas 0,15 V:
 una caída de 0,1 V se veía como 10–15 % menos. Por eso la placa mide en una **ventana de 10 s** (una muestra cada
-250 ms), usa la franja alta de las muestras (sin las caídas del WiFi), suaviza entre reportes y el % cambia recién con
-**3 puntos** de diferencia.
+250 ms), usa la franja alta de las muestras (sin las caídas del WiFi) y suaviza entre reportes.
 
 Recién cargada, la pila baja sola de 4,20 V a ~4,10 V en unos minutos (es normal). Por eso desde **4,10 V** muestra
 **100 %** (`BATERIA_MV_LLENA` en `config.h`), como los celulares.
 
-Recién sacada del cargador es normal que marque ~90–95 %: la tensión baja enseguida de 4,2 V a ~4,1 V.
+### Cargando (como un celular)
+Con el cargador del TP4056 enchufado la tensión **sube de golpe** aunque la pila esté casi vacía (por eso antes saltaba
+de 9 % a 88 %). Ahora la placa:
+- detecta ese salto y pasa a **"Cargando"** (la app muestra el rayito);
+- **sube el % de a poco** desde el que tenía (≈0,55 % por minuto: unas 3 h de 0 a 100 con un TP4056 de 1 A y una
+  18650 de ~2500 mAh; se ajusta con `BATERIA_CARGA_PCT_MIN`);
+- marca **100 %** recién cuando la pila lleva 20 min en la fase final de la carga (≥ 4,17 V);
+- al desenchufar, a los 5 min toma el % real de la tensión, y **sin cargador el % solo baja**.
+
+Sin cable extra, la carga se detecta por la tensión: si la placa se reinicia con el cargador ya enchufado, ese rato
+el % sale de la tensión. Para que sea exacta, soldá la pata **CHRG** del TP4056 (la de la luz roja) a un pin libre y
+activá `#define BATERIA_PIN_CARGA` en `config.h` con ese pin.
 
 **Calibrar con el multímetro** (opcional): con la placa funcionando, medí la batería (B+ y B−) y compará con la línea
 `[bateria] XXXX mV` del Monitor Serie. En `config.h`:

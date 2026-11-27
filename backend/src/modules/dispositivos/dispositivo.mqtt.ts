@@ -17,6 +17,7 @@ const esquemaState = z.object({
   ip: z.string().max(45).optional(),
   bat: z.number().int().min(0).max(100).optional(),
   mv: z.number().int().min(0).max(6000).optional(),
+  carga: z.boolean().optional(),
 });
 
 const esquemaEvento = z.object({
@@ -31,6 +32,7 @@ const esquemaTelemetria = z.object({
   heap: z.number().nonnegative().optional(),
   bat: z.number().int().min(0).max(100).optional(),
   mv: z.number().int().min(0).max(6000).optional(),
+  carga: z.boolean().optional(),
 });
 
 const esquemaAck = z.object({
@@ -40,7 +42,11 @@ const esquemaAck = z.object({
 });
 
 // Sin `bat` la placa no tiene batería conectada: se borra el último valor
-const bateriaDe = (m: { bat?: number; mv?: number }) => ({ bateria: m.bat ?? null, bateriaMv: m.bat !== undefined ? (m.mv ?? null) : null });
+const bateriaDe = (m: { bat?: number; mv?: number; carga?: boolean }) => ({
+  bateria: m.bat ?? null,
+  bateriaMv: m.bat !== undefined ? (m.mv ?? null) : null,
+  cargando: m.bat !== undefined && m.carga === true,
+});
 
 // Procesa los mensajes de cada placa en orden (evita condiciones de carrera)
 const colas = new Map<string, Promise<void>>();
@@ -75,8 +81,9 @@ async function marcarOnline(deviceId: string, extra: Prisma.DispositivoUpdateInp
     data: { ...extra, online: true, ultimaConexion: new Date() },
   });
   if (!antes.online) await registrarConexion(disp, true);
-  else if (emitir || disp.bateria !== antes.bateria) await emitirEstadoCasa(disp.casaId);
-  if (disp.bateria !== antes.bateria) await revisarBateria(disp);
+  else if (emitir || disp.bateria !== antes.bateria || disp.cargando !== antes.cargando) await emitirEstadoCasa(disp.casaId);
+  // También al desenchufar el cargador (con la pila ya baja el % no cambia, pero hay que avisar)
+  if (disp.bateria !== antes.bateria || disp.cargando !== antes.cargando) await revisarBateria(disp);
   return disp;
 }
 

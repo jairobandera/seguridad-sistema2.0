@@ -145,6 +145,8 @@ model Dispositivo {
   wifiRssi        Int?
   bateria         Int?
   bateriaMv       Int?
+  // El cargador del TP4056 está enchufado (el % sube de a poco, como en un celular)
+  cargando        Boolean   @default(false)
   // Último aviso de batería baja enviado (20 o 10 %); se borra al pasar el 30 % (cargada)
   avisoBateria    Int?
   ip              String?

@@ -131,6 +131,7 @@ int publicarEstado(bool puertaAbierta, const String& ssid, int rssi, const Strin
   if (bat.pct >= 0) {
     doc["bat"] = bat.pct;
     doc["mv"] = bat.mv;
+    doc["carga"] = bat.cargando;
   }
   return publicar(topicEstado_, doc, 1, true);
 }
@@ -151,6 +152,7 @@ int publicarTelemetria(int rssi, const bateria::Lectura& bat) {
   if (bat.pct >= 0) {
     doc["bat"] = bat.pct;
     doc["mv"] = bat.mv;
+    doc["carga"] = bat.cargando;
   }
   return publicar(base_ + "/telemetry", doc, 0, false);
 }
