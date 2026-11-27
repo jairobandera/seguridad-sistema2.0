@@ -10,7 +10,7 @@ const config: ExpoConfig = {
   name: "GuardiEl",
   slug: "seguridad",
   scheme: "seguridadhogar",
-  version: "2.1.0",
+  version: "2.2.0",
   orientation: "portrait",
   icon: "./assets/icon.png",
   userInterfaceStyle: "automatic",
